@@ -1,6 +1,7 @@
 import socket
-import numpy as np
 import argparse
+import numpy as np
+import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
@@ -49,70 +50,94 @@ class Autoencoder(nn.Module):
 
 
 def train_cifar(args, device):
-    ## Training initialization
+    ## Arguments
     EPOCH = args.epoch
     B_SIZE = args.batch
     L_RATE = args.lr
+
+    ## Data loading
+    cifar10 = CIFAR10("./cifar10", train=True, transform=T.ToTensor(), download=True)
+    loader = DataLoader(cifar10, batch_size=B_SIZE, shuffle=True)
+
+    ## Training initialization
     model = Autoencoder()
     model.to(device)
     loss_fn = nn.MSELoss()
     opt = optim.Adam(model.parameters(), lr=L_RATE, weight_decay=0)
 
-    ## Data loading
-    cifar10 = CIFAR10("./cifar10", train=True, transform=T.ToTensor(), download=True)
-    loader = DataLoader(cifar10, batch_size=B_SIZE, shuffle=True)
-    print(f"\nDataset: {len(cifar10)} * {tuple(cifar10[0][0].shape)}")
-    print(f"Batch-Size: {B_SIZE}")
-
-    ## Gradient Noise Scale
+    ## Gradient Noise Scale initialization
     GNS = GradientNoiseScale(
         model=model,
         dataset=cifar10,
         loss_fn=loss_fn,
         device=device
     )
+
     ## Training loop
     model.train()
-    epoch_losses = []
-    print("\nTraining started:\n")
+    loss_log = []
+    gns_log = []
+    print("\nTraining started:")
     for epoch in range(EPOCH):
         losses = []
+        gns_scores = []
         for x, _ in tqdm(loader):
             opt.zero_grad()
             x = x.to(device)
-
             out = model(x)
             loss = loss_fn(out, x)
-            losses.append(loss.item())
+            loss.backward()
 
             ## Gradient Noise Scale
             G_est = get_gradient_vector(model)
             gns = GNS.signal_to_noise_ratio(G_est)
-            print(f"GNS: {gns}")
 
-            loss.backward()
+            gns_scores.append(float(gns))
+            losses.append(loss.item())
             opt.step()
 
         with torch.no_grad():
+            loss_log += losses
+            gns_log += gns_scores
+
             epoch_loss = np.mean(losses)
-            epoch_losses.append(epoch_loss)
-            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}")
+            epoch_gns = np.mean(gns_scores)
+            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}")
 
     model.eval()
-    print("Done")
+    print("\n----------Training completed!----------")
+
+    return loss_log, gns_log
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epoch", type=int, default=2, required=True)
-    parser.add_argument("--batch", type=int, default=500, required=True)
-    parser.add_argument("--lr", type=float, default=1e-4, required=True)
-    parser.add_argument("--g_true", type=float, default=1.0, required=True)
+    parser.add_argument("--epoch", type=int, default=2)
+    parser.add_argument("--batch", type=int, default=500)
+    parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--g_true", type=float, default=1.0)
     parser.add_argument("--save_fig", type=str, default="cifar_train")
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"Host: {socket.gethostname()}")
+    print(f"\nHost: {socket.gethostname()}")
     print(f"Device: {device.upper()}")
 
-    train_cifar(args, device=device)
+    loss_log, gns_log = train_cifar(args, device=device)
+
+    plt.figure(figsize=(16, 12))
+    plt.suptitle(f"CIFAR10 AE-Training (B={args.batch})", fontsize=24)
+
+    plt.subplot(2, 1, 1)
+    plt.title("Epoch Loss", fontsize=20)
+    plt.ylabel("Loss", fontsize=16)
+    plt.plot(loss_log)
+
+    plt.subplot(2, 1, 2)
+    plt.title("Gradient Noise Scale", fontsize=20)
+    plt.xlabel("Iteration", fontsize=18)
+    plt.ylabel("B_simple", fontsize=16)
+    plt.plot(gns_log)
+
+    plt.savefig(f"./visuals/{args.save_fig}.png")
+    print(f"Figure saved at visuals/{args.save_fig}.png\n")

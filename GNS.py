@@ -31,11 +31,11 @@ class GradientNoiseScale:
         self.G_est = None  ## Current batch gradient
 
         if verbose:
-            print("---------------------------------")
-            print(f"\nGNS initialized on {device.upper()}.")
-            print(f"Grad. shape: {self.G_true.shape}")
+            print("\n---------GNS Initialized---------")
+            print(f"Device: {device.upper()}.")
+            print(f"Grad shape: {self.G_true.shape}")
             print(f"G2: {float(self.G2)}")
-            print("---------------------------------\n")
+            print("----------------------------------\n")
 
     def get_true_gradient(self, data_portion=1.0, update=True) -> Tensor:
         assert 0.0 < data_portion <= 1.0, "Data portion must be between 0 and 1."
@@ -47,15 +47,16 @@ class GradientNoiseScale:
         data = Subset(self.dataset, indices=np.random.randint(0, len(self.dataset), size=SIZE))
         loader = DataLoader(data, batch_size=SIZE, shuffle=False)
         grads: Tensor = ...
-        for x, _ in tqdm(loader, desc=f"Calculating G_true w.r.t {SIZE} data points"):
+        print(f"Calculating G_true w.r.t {SIZE} data points")
+        for x, _ in tqdm(loader):
             x = x.to(self.device)
             out = self.model(x)
             loss = self.loss_fn(out, x)
             loss.backward()
             grads = get_gradient_vector(self.model)
-
             if update:
                 self.optim.step()
+        print("-------------------------------------------")
 
         self.model.eval()
         return grads
@@ -66,12 +67,12 @@ class GradientNoiseScale:
         divided by the global norm of the gradient.
         """
         assert G_est.ndim == 1
-        ## Update grad log
         self.G_est = G_est
         self.grad_log.append(G_est)
 
         noise = torch.sum(torch.pow(self.G_true - G_est, 2))
         signal = self.G2
+
         return noise / signal
 
     def get_critical_batch_size(self):
