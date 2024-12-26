@@ -16,8 +16,10 @@ def get_gradient_vector(model: nn.Module):
     return torch.cat([param.grad.view(-1) for param in model.parameters() if param.grad is not None])
 
 
-## TODO: Adjust for diffusion training (time-step dependent)
-## TODO: Refactor prints
+## TODO: Adjust for diffusion training (time-step dependence).
+## TODO: Investigate EMA (Exp. Moving Avg) and Min-SNR(t) weighting
+## TODO: Improve/Correct B_crit calculation.
+## TODO: Refactor prints.
 class GradientNoiseScale:
     """
     Basic GNS computations.
@@ -126,6 +128,12 @@ class GradientNoiseScale:
         Critical Batch-Size computed as GNS.
         """
         return abs(int(self.gradient_noise_scale()))
+
+    def min_SNR(self, t:int, gamma=None):
+        """
+        Reference: Efficient Diffusion Training via Min-SNR Weighting Strategy
+        """
+        pass
 
 
 if __name__ == "__main__":
