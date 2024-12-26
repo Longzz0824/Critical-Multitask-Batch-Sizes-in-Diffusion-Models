@@ -106,9 +106,9 @@ def train_cifar(args, device):
             print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}")
 
     model.eval()
-    print("\n-------------Training Completed!-------------")
+    print("\n-------------Training Completed!--------------")
 
-    return loss_log, gns_log
+    return GNS, loss_log, gns_log
 
 
 if __name__ == "__main__":
@@ -124,21 +124,24 @@ if __name__ == "__main__":
     print(f"\nHost: {socket.gethostname()}")
     print(f"Device: {device.upper()}")
 
-    loss_log, gns_log = train_cifar(args, device=device)
+    GNS, loss_log, gns_log = train_cifar(args, device=device)
 
     plt.figure(figsize=(16, 12))
-    plt.suptitle(f"CIFAR10 AE-Training (B={args.batch})", fontsize=24)
+    #g_size = int(len(GNS.dataset) * args.g_true)
+    param = sum(p.numel() for p in GNS.model.parameters() if p.requires_grad)
+    plt.suptitle(f"CIFAR10-Autoencoder Training (Batch={args.batch}, #Param={param})", fontsize=24)
 
     plt.subplot(2, 1, 1)
-    plt.title("Epoch Loss", fontsize=20)
-    plt.ylabel("Loss", fontsize=16)
+    plt.title("Training Loss", fontsize=20)
+    plt.ylabel("L2 Loss", fontsize=16)
     plt.plot(loss_log)
 
     plt.subplot(2, 1, 2)
     plt.title("Gradient Noise Scale", fontsize=20)
-    plt.xlabel("Iteration", fontsize=18)
+    plt.xlabel("Optimization Step", fontsize=18)
     plt.ylabel("B_simple", fontsize=16)
     plt.plot(gns_log)
 
     plt.savefig(f"./visuals/{args.save_fig}.png")
     print(f"Figure saved at visuals/{args.save_fig}.png\n")
+    print("Done!")
