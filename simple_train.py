@@ -12,6 +12,7 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms as T
 from tqdm import tqdm
 
+import diffusion
 #######################################################
 from GNS import GradientNoiseScale, get_gradient_vector
 #######################################################
@@ -21,7 +22,6 @@ class Autoencoder(nn.Module):
     """
     Simple Autoencoder Network
     """
-
     def __init__(self, img_shape=(3, 32, 32)):
         super(Autoencoder, self).__init__()
         C, H, W = img_shape
@@ -71,17 +71,20 @@ def train_cifar(args, device):
         dataset=cifar10,
         loss_fn=loss_fn,
         device=device,
-        data_portion=args.g_true
+        data_portion=args.g_true,
+        betas=diffusion.create_diffusion("").betas
     )
 
     ## Training loop
     model.train()
     loss_log = []
     gns_log = []
+    snr_log = []
     print("\n-------------Training Started-------------")
     for epoch in range(EPOCH):
         losses = []
         gns_scores = []
+        snr_scores = []
         for x, _ in tqdm(loader):
             opt.zero_grad()
             x = x.to(device)
@@ -91,24 +94,29 @@ def train_cifar(args, device):
 
             ## Gradient Noise Scale
             G_est = get_gradient_vector(model)
-            gns = GNS.signal_to_noise_ratio(G_est)
+            gns = GNS.gradient_SNR(G_est)
+            t = int(torch.randint(0, 1000, (1,), device=device))
+            snr = GNS.min_SNR(t, gamma=5)
 
             gns_scores.append(float(gns))
             losses.append(loss.item())
+            snr_scores.append(float(snr))
             opt.step()
 
         with torch.no_grad():
             loss_log += losses
             gns_log += gns_scores
+            snr_log += snr_scores
 
             epoch_loss = np.mean(losses)
             epoch_gns = np.mean(gns_scores)
-            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}")
+            epoch_snr = np.mean(snr_scores)
+            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}\tMin-SNR-t: {epoch_snr}")
 
     model.eval()
     print("\n-------------Training Completed!--------------")
 
-    return GNS, loss_log, gns_log
+    return GNS, loss_log, gns_log, snr_log
 
 
 if __name__ == "__main__":
@@ -124,22 +132,27 @@ if __name__ == "__main__":
     print(f"\nHost: {socket.gethostname()}")
     print(f"Device: {device.upper()}")
 
-    GNS, loss_log, gns_log = train_cifar(args, device=device)
+    GNS, loss_log, gns_log, snr_log = train_cifar(args, device=device)
 
     plt.figure(figsize=(16, 12))
     #g_size = int(len(GNS.dataset) * args.g_true)
     param = sum(p.numel() for p in GNS.model.parameters() if p.requires_grad)
     plt.suptitle(f"CIFAR10-Autoencoder Training (Batch={args.batch}, #Param={param})", fontsize=24)
 
-    plt.subplot(2, 1, 1)
+    plt.subplot(3, 1, 1)
     plt.title("Training Loss", fontsize=20)
     plt.ylabel("L2 Loss", fontsize=16)
     plt.plot(loss_log)
 
-    plt.subplot(2, 1, 2)
+    plt.subplot(3, 1, 2)
     plt.title("Gradient Noise Scale", fontsize=20)
-    plt.xlabel("Optimization Step", fontsize=18)
     plt.ylabel("B_simple", fontsize=16)
+    plt.plot(gns_log)
+
+    plt.subplot(3, 1, 3)
+    plt.title("Min-SNR(t)", fontsize=20)
+    plt.xlabel("Optimization Step", fontsize=18)
+    plt.ylabel("W_loss", fontsize=16)
     plt.plot(gns_log)
 
     plt.savefig(f"./visuals/{args.save_fig}.png")

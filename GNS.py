@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 from tqdm import tqdm
 
 
@@ -22,15 +22,20 @@ def get_gradient_vector(model: nn.Module):
 ## TODO: Refactor prints.
 class GradientNoiseScale:
     """
-    Basic GNS computations.
-    ------------------------------------------------------
-    Reference: An Empirical Model of Large Batch Training
+    Basic GNS Computations for Diffusion Training.
+    ------------------------------------------------------------------------------------
+    References:
+     + An Empirical Model of Large Batch Training (arXiv:1812.06162v1)
+     + Efficient Diffusion Training via Min-SNR Weighting Strategy (arXiv:2303.09556v3)
+     + Scalable Diffusion Models with Transformers (arXiv:2212.09748v2)
+    ------------------------------------------------------------------------------------
     """
     def __init__(self,
-                 model,
                  dataset,
+                 model,
                  loss_fn,
-                 device,
+                 betas: iter,
+                 device: str,
                  data_portion=1.0,
                  verbose=True,
                  update=True
@@ -39,16 +44,19 @@ class GradientNoiseScale:
         self.dataset = dataset
         self.loss_fn = loss_fn
         self.optim = optim.AdamW(self.model.parameters(), lr=1e-4, weight_decay=0)
+        self.betas = betas
         self.device = device
         self.verbose = verbose
+        if verbose:
+            print("\nGNS Initializing...")
 
         self.grad_log = []
         self.G_true = self.get_true_gradient(data_portion, update)
         self.G2 = torch.norm(self.G_true) ** 2
 
         self.G_est = None  ## Current batch gradient
-        self.snr = None  ## Current signal-to-noise ratio
-        self.gns = None  ## Current gradient noise scale
+        self.snr = None    ## Current signal-to-noise ratio
+        self.gns = None    ## Current gradient noise scale
         self.B_crit = self.critical_batch_size()
 
         if verbose:
@@ -60,7 +68,7 @@ class GradientNoiseScale:
             print(f"B_crit: {self.B_crit}")
             print("----------------------------------")
 
-    def get_true_gradient(self, data_portion=1.0, update=True) -> Tensor:
+    def get_true_gradient(self, data_portion=1.0, update=True, verbose=True) -> Tensor:
         assert 0.0 < data_portion <= 1.0, "Data portion must be between 0 and 1."
         self.optim.zero_grad()
         self.model.train()
@@ -72,7 +80,7 @@ class GradientNoiseScale:
         loader = DataLoader(data, batch_size=SIZE, shuffle=False)
         print("\n----------------------------------------------")
         print(f"Calculating G_true w.r.t {SIZE} data points:")
-        for x, _ in tqdm(loader):
+        for x, _ in tqdm(loader, disable=not verbose):
             x = x.to(self.device)
             out = self.model(x)
             loss = self.loss_fn(out, x)
@@ -84,11 +92,14 @@ class GradientNoiseScale:
         self.model.eval()
         return grads
 
-    def signal_to_noise_ratio(self, G_est: Tensor) -> float:
+    def gradient_SNR(self, G_est: Tensor) -> float:
         """
         Calculates the gradient noise scale equal to the sum of the variances of the individual gradient components,
         divided by the global norm of the gradient.
+        Reference: An Empirical Model of Large Batch Training - Section 2.2
         """
+        ## TODO: Checkout https://arxiv.org/pdf/2001.07384
+
         assert G_est.ndim == 1, "Gradient vector should be ndim=1"
         self.G_est = G_est
         self.grad_log.append(G_est)
@@ -105,10 +116,8 @@ class GradientNoiseScale:
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
         """
         ## (True) Batch-Gradients
-        print("Calculating Big-Batch Jacobian:")
-        G_big = self.get_true_gradient(B_big / len(self.dataset))
-        print("Calculating Small-Batch Jacobian:")
-        G_small = self.get_true_gradient(B_small / len(self.dataset))
+        G_big = self.get_true_gradient(B_big / len(self.dataset), verbose=False)
+        G_small = self.get_true_gradient(B_small / len(self.dataset), verbose=False)
 
         ## Unbiased |G_true|^2 estimate
         G2 = B_big * (torch.norm(G_big) ** 2) - B_small * (torch.norm(G_small) ** 2)
@@ -127,13 +136,20 @@ class GradientNoiseScale:
         """
         Critical Batch-Size computed as GNS.
         """
+        ## TODO: correct implementation
         return abs(int(self.gradient_noise_scale()))
 
-    def min_SNR(self, t:int, gamma=None):
+    def min_SNR(self, t:int, gamma=5) -> float:
         """
         Reference: Efficient Diffusion Training via Min-SNR Weighting Strategy
         """
-        pass
+        ## TODO: check implementation
+        var_t = self.betas[t]
+        snr_t = (var_t / np.sqrt(1-var_t)) ** 2
+        w_loss = min(gamma, snr_t)
+        self.G_est = w_loss * self.G_est
+
+        return w_loss
 
 
 if __name__ == "__main__":
