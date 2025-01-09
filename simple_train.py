@@ -1,5 +1,7 @@
+import random
 import socket
 import argparse
+import random
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -16,6 +18,18 @@ import diffusion
 #######################################################
 from GNS import GradientNoiseScale, get_gradient_vector
 #######################################################
+
+
+## TODO: check implementation
+def set_seed(seed, device):
+    random.seed(seed)
+    np.random.seed(seed)
+
+    if device == "cpu":
+        torch.manual_seed(seed)
+    elif device == "cuda":
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
 
 
 class Autoencoder(nn.Module):
@@ -95,12 +109,12 @@ def train_cifar(args, device):
             ## Gradient Noise Scale
             G_est = get_gradient_vector(model)
             gns = GNS.gradient_SNR(G_est)
-            t = int(torch.randint(0, 1000, (1,), device=device))
-            snr = GNS.min_SNR(t, gamma=5)
+            t = int(torch.randint(0, 1000, (1,), device=device))  # fixme
+        #    snr = GNS.min_SNR(t, gamma=5)
 
             gns_scores.append(float(gns))
             losses.append(loss.item())
-            snr_scores.append(float(snr))
+        #    snr_scores.append(float(snr))
             opt.step()
 
         with torch.no_grad():
@@ -110,7 +124,7 @@ def train_cifar(args, device):
 
             epoch_loss = np.mean(losses)
             epoch_gns = np.mean(gns_scores)
-            epoch_snr = np.mean(snr_scores)
+        #    epoch_snr = np.mean(snr_scores)
             print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}\tMin-SNR-t: {epoch_snr}")
 
     model.eval()

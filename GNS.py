@@ -54,9 +54,9 @@ class GradientNoiseScale:
         self.G_true = self.get_true_gradient(data_portion, update)
         self.G2 = torch.norm(self.G_true) ** 2
 
-        self.G_est = None  ## Current batch gradient
-        self.snr = None    ## Current signal-to-noise ratio
-        self.gns = None    ## Current gradient noise scale
+        self.G_est = 0  ## Current batch gradient
+        self.snr = 0    ## Current signal-to-noise ratio
+        self.gns = 0    ## Current gradient noise scale
         self.B_crit = self.critical_batch_size()
 
         if verbose:
@@ -68,7 +68,7 @@ class GradientNoiseScale:
             print(f"B_crit: {self.B_crit}")
             print("----------------------------------")
 
-    def get_true_gradient(self, data_portion=1.0, update=True, verbose=True) -> Tensor:
+    def get_true_gradient(self, data_portion=1.0, verbose=True) -> Tensor:
         assert 0.0 < data_portion <= 1.0, "Data portion must be between 0 and 1."
         self.optim.zero_grad()
         self.model.train()
@@ -86,8 +86,7 @@ class GradientNoiseScale:
             loss = self.loss_fn(out, x)
             loss.backward()
             grads = get_gradient_vector(self.model)
-            if update:
-                self.optim.step()
+
 
         self.model.eval()
         return grads
@@ -110,7 +109,7 @@ class GradientNoiseScale:
 
         return self.snr
 
-    def gradient_noise_scale(self, B_big=50_000, B_small=20_000) -> float:
+    def gradient_noise_scale(self, B_big=50_000, B_small=1000, reps: int = 10) -> float:
         """
         Calculates the 'unbiased' estimate of the simple noise scale
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
@@ -119,12 +118,16 @@ class GradientNoiseScale:
         G_big = self.get_true_gradient(B_big / len(self.dataset), verbose=False)
         G_small = self.get_true_gradient(B_small / len(self.dataset), verbose=False)
 
-        ## Unbiased |G_true|^2 estimate
-        G2 = B_big * (torch.norm(G_big) ** 2) - B_small * (torch.norm(G_small) ** 2)
-        G2 *= 1 / (B_big - B_small)
+        ## Unbiased |G_true|^2 estimate (averaged)
+        G2_s = []
+        for _ in range(reps):
+            G2 = B_big * (torch.norm(G_big, p=2) ** 2) - B_small * (torch.norm(G_small, p=2) ** 2)
+            G2 *= 1 / (B_big - B_small)
+            G2_s.append(G2)
+        G2 = torch.mean(torch.stack(G2_s), dim=0)
 
         ## Unbiased Cov(G_est) estimate
-        S = torch.norm(G_small) ** 2 - torch.norm(G_big) ** 2
+        S = (torch.norm(G_small, p=2) ** 2) - (torch.norm(G_big, p=2) ** 2)
         S *= 1 / ((1 / B_small) - (1 / B_big))
 
         ## Unbiased Gradient Noise Scale
