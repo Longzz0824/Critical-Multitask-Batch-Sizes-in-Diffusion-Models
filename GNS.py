@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch import Tensor
-from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.data import DataLoader, Subset
 from tqdm import tqdm
 
 
@@ -17,7 +17,7 @@ def get_gradient_vector(model: nn.Module):
 
 
 ## TODO: Adjust for diffusion training (time-step dependence).
-## TODO: Investigate EMA (Exp. Moving Avg) and Min-SNR(t) weighting
+## TODO: Investigate EMA (Exp. Moving Avg)
 ## TODO: Improve/Correct B_crit calculation.
 ## TODO: Refactor prints.
 class GradientNoiseScale:
@@ -55,7 +55,7 @@ class GradientNoiseScale:
         self.G2 = torch.norm(self.G_true) ** 2
 
         self.G_est = 0  ## Current batch gradient
-        self.snr = 0    ## Current signal-to-noise ratio
+        self.g_snr = 0    ## Current signal-to-noise ratio
         self.gns = 0    ## Current gradient noise scale
         self.B_crit = self.critical_batch_size()
 
@@ -87,7 +87,6 @@ class GradientNoiseScale:
             loss.backward()
             grads = get_gradient_vector(self.model)
 
-
         self.model.eval()
         return grads
 
@@ -105,11 +104,11 @@ class GradientNoiseScale:
 
         noise = torch.sum(torch.pow(self.G_true - G_est, 2))
         signal = self.G2
-        self.snr = noise / signal
+        self.g_snr = noise / signal
 
-        return self.snr
+        return self.g_snr
 
-    def gradient_noise_scale(self, B_big=50_000, B_small=1000, reps: int = 10) -> float:
+    def gradient_noise_scale(self, B_big=30_000, B_small=1_000, reps:int = 10) -> float:
         """
         Calculates the 'unbiased' estimate of the simple noise scale
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
@@ -153,6 +152,7 @@ class GradientNoiseScale:
         self.G_est = w_loss * self.G_est
 
         return w_loss
+
 
 
 if __name__ == "__main__":

@@ -17,6 +17,7 @@ from tqdm import tqdm
 import diffusion
 #######################################################
 from GNS import GradientNoiseScale, get_gradient_vector
+from utils import visualize_training_gns
 #######################################################
 
 
@@ -32,12 +33,12 @@ def set_seed(seed, device):
         torch.cuda.manual_seed_all(seed)
 
 
-class Autoencoder(nn.Module):
+class SmallAE(nn.Module):
     """
     Simple Autoencoder Network
     """
     def __init__(self, img_shape=(3, 32, 32)):
-        super(Autoencoder, self).__init__()
+        super(SmallAE, self).__init__()
         C, H, W = img_shape
         self.device = device
         self.flatten = nn.Flatten()
@@ -63,6 +64,45 @@ class Autoencoder(nn.Module):
         return x
 
 
+
+class LargeAE(nn.Module):
+    def __init__(self, img_shape=(3, 32, 32)):
+        super(LargeAE, self).__init__()
+        C, H, W = img_shape
+        self.device = device
+        self.flatten = nn.Flatten()
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(C, H, W))
+        self.encoder = nn.Sequential(
+            nn.Linear(C * H * W, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 10)
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(10, 32),
+            nn.ReLU(),
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, C * H * W)
+        )
+
+    def forward(self, x: Tensor):
+        x = x.to(self.device)
+        x = self.flatten(x)
+        x = self.encoder(x)
+        x = self.decoder(x)
+        x = self.unflatten(x)
+
+
 def train_cifar(args, device):
     ## Arguments
     EPOCH = args.epoch
@@ -74,7 +114,13 @@ def train_cifar(args, device):
     loader = DataLoader(cifar10, batch_size=B_SIZE, shuffle=True)
 
     ## Training initialization
-    model = Autoencoder()
+    if args.model == "small":
+        model = SmallAE()
+    elif args.model == "large":
+        model = LargeAE()
+    else:
+        raise ValueError("Wrong model input")
+
     model.to(device)
     loss_fn = nn.MSELoss()
     opt = optim.Adam(model.parameters(), lr=L_RATE, weight_decay=0)
@@ -91,17 +137,18 @@ def train_cifar(args, device):
 
     ## Training loop
     model.train()
-    loss_log = []
-    gns_log = []
-    snr_log = []
+    loss_track = []
+    gns_track = []
     print("\n-------------Training Started-------------")
     for epoch in range(EPOCH):
         losses = []
         gns_scores = []
-        snr_scores = []
         for x, _ in tqdm(loader):
             opt.zero_grad()
+
+            ## Backpropagation
             x = x.to(device)
+            t = int(torch.randint(0, 1000, (1,), device=device))
             out = model(x)
             loss = loss_fn(out, x)
             loss.backward()
@@ -109,34 +156,31 @@ def train_cifar(args, device):
             ## Gradient Noise Scale
             G_est = get_gradient_vector(model)
             gns = GNS.gradient_SNR(G_est)
-            t = int(torch.randint(0, 1000, (1,), device=device))  # fixme
-        #    snr = GNS.min_SNR(t, gamma=5)
 
+            ## Tracking
             gns_scores.append(float(gns))
             losses.append(loss.item())
-        #    snr_scores.append(float(snr))
             opt.step()
 
         with torch.no_grad():
-            loss_log += losses
-            gns_log += gns_scores
-            snr_log += snr_scores
+            loss_track += losses
+            gns_track += gns_scores
 
             epoch_loss = np.mean(losses)
             epoch_gns = np.mean(gns_scores)
-        #    epoch_snr = np.mean(snr_scores)
-            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}\tMin-SNR-t: {epoch_snr}")
+            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}\t")
 
     model.eval()
     print("\n-------------Training Completed!--------------")
 
-    return GNS, loss_log, gns_log, snr_log
+    return GNS, loss_track, gns_track
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--epoch", type=int, default=2)
     parser.add_argument("--batch", type=int, default=500)
+    parser.add_argument("--model", type=str, choices=("small", "large"), default="small")
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--g_true", type=float, default=1.0)
     parser.add_argument("--save_fig", type=str, default="cifar_train")
@@ -146,29 +190,10 @@ if __name__ == "__main__":
     print(f"\nHost: {socket.gethostname()}")
     print(f"Device: {device.upper()}")
 
-    GNS, loss_log, gns_log, snr_log = train_cifar(args, device=device)
+    ## Training
+    GNS, loss_log, gns_log = train_cifar(args, device=device)
 
-    plt.figure(figsize=(16, 12))
-    #g_size = int(len(GNS.dataset) * args.g_true)
-    param = sum(p.numel() for p in GNS.model.parameters() if p.requires_grad)
-    plt.suptitle(f"CIFAR10-Autoencoder Training (Batch={args.batch}, #Param={param})", fontsize=24)
+    ## Visualiation
+    visualize_training_gns(GNS, loss_log, gns_log, args=args)
 
-    plt.subplot(3, 1, 1)
-    plt.title("Training Loss", fontsize=20)
-    plt.ylabel("L2 Loss", fontsize=16)
-    plt.plot(loss_log)
-
-    plt.subplot(3, 1, 2)
-    plt.title("Gradient Noise Scale", fontsize=20)
-    plt.ylabel("B_simple", fontsize=16)
-    plt.plot(gns_log)
-
-    plt.subplot(3, 1, 3)
-    plt.title("Min-SNR(t)", fontsize=20)
-    plt.xlabel("Optimization Step", fontsize=18)
-    plt.ylabel("W_loss", fontsize=16)
-    plt.plot(gns_log)
-
-    plt.savefig(f"./visuals/{args.save_fig}.png")
-    print(f"Figure saved at visuals/{args.save_fig}.png\n")
     print("Done!")
