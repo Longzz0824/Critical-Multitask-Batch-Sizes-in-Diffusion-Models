@@ -60,7 +60,6 @@ class SmallAE(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         x = self.unflatten(x)
-
         return x
 
 
@@ -100,10 +99,10 @@ class LargeAE(nn.Module):
         x = self.encoder(x)
         x = self.decoder(x)
         x = self.unflatten(x)
-
         return x
 
 
+## TODO: Integrate logger
 def train_cifar(args, device):
     ## Arguments
     EPOCH = args.epoch
