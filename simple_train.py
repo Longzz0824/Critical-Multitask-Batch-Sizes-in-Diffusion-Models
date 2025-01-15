@@ -64,7 +64,6 @@ class SmallAE(nn.Module):
         return x
 
 
-
 class LargeAE(nn.Module):
     def __init__(self, img_shape=(3, 32, 32)):
         super(LargeAE, self).__init__()
@@ -102,6 +101,8 @@ class LargeAE(nn.Module):
         x = self.decoder(x)
         x = self.unflatten(x)
 
+        return x
+
 
 def train_cifar(args, device):
     ## Arguments
@@ -115,13 +116,12 @@ def train_cifar(args, device):
 
     ## Training initialization
     if args.model == "small":
-        model = SmallAE()
+        model = SmallAE().to(device)
     elif args.model == "large":
-        model = LargeAE()
+        model = LargeAE().to(device)
     else:
         raise ValueError("Wrong model input")
 
-    model.to(device)
     loss_fn = nn.MSELoss()
     opt = optim.Adam(model.parameters(), lr=L_RATE, weight_decay=0)
 
@@ -153,13 +153,14 @@ def train_cifar(args, device):
             loss = loss_fn(out, x)
             loss.backward()
 
-            ## Gradient Noise Scale
+            ## Gradient Noise Scale calculation
             G_est = get_gradient_vector(model)
             gns = GNS.gradient_SNR(G_est)
 
             ## Tracking
             gns_scores.append(float(gns))
             losses.append(loss.item())
+
             opt.step()
 
         with torch.no_grad():
@@ -168,7 +169,7 @@ def train_cifar(args, device):
 
             epoch_loss = np.mean(losses)
             epoch_gns = np.mean(gns_scores)
-            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}\t")
+            print(f"[{epoch+1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}\t")
 
     model.eval()
     print("\n-------------Training Completed!--------------")
