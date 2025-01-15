@@ -36,9 +36,10 @@ class GradientNoiseScale:
                  loss_fn,
                  betas: iter,
                  device: str,
-                 data_portion=1.0,
+                 data_portion = 1.0,
+                 B_big: int = 30_000,
+                 B_small: int = 1_000,
                  verbose=True,
-                 update=True
                  ):
         self.model = model.to(device)
         self.dataset = dataset
@@ -47,17 +48,19 @@ class GradientNoiseScale:
         self.betas = betas
         self.device = device
         self.verbose = verbose
+        self.B_big = B_big
+        self.B_small = B_small
         if verbose:
             print("\nGNS Initializing...")
 
         self.grad_log = []
-        self.G_true = self.get_true_gradient(data_portion, update)
+        self.G_true = self.get_true_gradient(data_portion, verbose)
         self.G2 = torch.norm(self.G_true) ** 2
 
         self.G_est = 0  ## Current batch gradient
-        self.g_snr = 0    ## Current signal-to-noise ratio
+        self.g_snr = 0  ## Current signal-to-noise ratio
         self.gns = 0    ## Current gradient noise scale
-        self.B_crit = self.critical_batch_size()
+        self.gradient_noise_scale(B_big, B_small, reps=10)
 
         if verbose:
             print("\n---------GNS Initialized---------")
@@ -65,7 +68,6 @@ class GradientNoiseScale:
             print(f"dim(G): {tuple(self.G_true.shape)}")
             print(f"G2: {float(self.G2):.5f}")
             print(f"GNS: {self.gns:.5f}")
-            print(f"B_crit: {self.B_crit}")
             print("----------------------------------")
 
     def get_true_gradient(self, data_portion=1.0, verbose=True) -> Tensor:
@@ -108,7 +110,7 @@ class GradientNoiseScale:
 
         return self.g_snr
 
-    def gradient_noise_scale(self, B_big=30_000, B_small=1_000, reps:int = 10) -> float:
+    def gradient_noise_scale(self, B_big=30_000, B_small=1_000, reps=10) -> float:
         """
         Calculates the 'unbiased' estimate of the simple noise scale
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
@@ -134,24 +136,12 @@ class GradientNoiseScale:
 
         return self.gns
 
+    ## TODO: implement method
     def critical_batch_size(self) -> int:
         """
         Critical Batch-Size computed as GNS.
         """
-        ## TODO: correct implementation
         return abs(int(self.gradient_noise_scale()))
-
-    def min_SNR(self, t:int, gamma=5) -> float:
-        """
-        Reference: Efficient Diffusion Training via Min-SNR Weighting Strategy
-        """
-        ## TODO: check implementation
-        var_t = self.betas[t]
-        snr_t = (var_t / np.sqrt(1-var_t)) ** 2
-        w_loss = min(gamma, snr_t)
-        self.G_est = w_loss * self.G_est
-
-        return w_loss
 
 
 

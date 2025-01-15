@@ -1,11 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
 import torch
-import torch.nn as nn
 from torch import Tensor
 from GNS import GradientNoiseScale
-
 
 
 def visualize_training_gns(GNS: GradientNoiseScale, loss_log: iter, gns_log: iter, args):
