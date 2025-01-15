@@ -131,6 +131,8 @@ def train_cifar(args, device):
         loss_fn=loss_fn,
         device=device,
         data_portion=args.g_true,
+        B_big=args.B_big,
+        B_small=args.B_small,
         betas=diffusion.create_diffusion("").betas
     )
 
@@ -153,8 +155,9 @@ def train_cifar(args, device):
             loss.backward()
 
             ## Gradient Noise Scale calculation
+            B = x.shape[0]
             G_est = get_gradient_vector(model)
-            gns = GNS.gradient_SNR(G_est)
+            gns = GNS.gradient_SNR(G_est, b_size=B)
 
             ## Tracking
             gns_scores.append(float(gns))
@@ -178,11 +181,13 @@ def train_cifar(args, device):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--epoch", type=int, default=2)
-    parser.add_argument("--batch", type=int, default=500)
     parser.add_argument("--model", type=str, choices=("small", "large"), default="small")
+    parser.add_argument("--epoch", type=int, default=2)
+    parser.add_argument("--batch", type=int, default=1000)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--g_true", type=float, default=1.0)
+    parser.add_argument("--B_big", type=int, default=30_000)
+    parser.add_argument("--B_small", type=int, default=1_000)
     parser.add_argument("--save_fig", type=str, default="cifar_train")
     args = parser.parse_args()
 

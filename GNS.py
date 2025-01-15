@@ -48,29 +48,37 @@ class GradientNoiseScale:
         self.betas = betas
         self.device = device
         self.verbose = verbose
-        self.B_big = B_big
-        self.B_small = B_small
         if verbose:
-            print("\nGNS Initializing...")
+            print("\nInitializing GNS...")
 
         self.grad_log = []
+        self.B_big = B_big
+        self.B_small = B_small
         self.G_true = self.get_true_gradient(data_portion, verbose)
         self.G2 = torch.norm(self.G_true) ** 2
 
         self.G_est = 0  ## Current batch gradient
         self.g_snr = 0  ## Current signal-to-noise ratio
-        self.gns = 0    ## Current gradient noise scale
+        self.gns = 0    ## Initial gradient noise scale
         self.gradient_noise_scale(B_big, B_small, reps=10)
 
         if verbose:
             print("\n---------GNS Initialized---------")
             print(f"Device: {device.upper()}")
+            print(f"B_big: {self.B_big}")
+            print(f"B_small: {self.B_small}")
             print(f"dim(G): {tuple(self.G_true.shape)}")
-            print(f"G2: {float(self.G2):.5f}")
-            print(f"GNS: {self.gns:.5f}")
+            print(f"G^2: {float(self.G2):.5f}")
+            print(f"Initial GNS: {self.gns:.5f}")
             print("----------------------------------")
 
     def get_true_gradient(self, data_portion=1.0, verbose=True) -> Tensor:
+        """
+        Calculates the true gradient of the data set (or portion of it). The outcome will be treated as true
+        update direction for the model.
+        ----------------------------------------------------------------------------------------------------
+        Reference: An Empirical Model of Large Batch Training - Section 2.2
+        """
         assert 0.0 < data_portion <= 1.0, "Data portion must be between 0 and 1."
         self.optim.zero_grad()
         self.model.train()
@@ -92,27 +100,10 @@ class GradientNoiseScale:
         self.model.eval()
         return grads
 
-    def gradient_SNR(self, G_est: Tensor) -> float:
-        """
-        Calculates the gradient noise scale equal to the sum of the variances of the individual gradient components,
-        divided by the global norm of the gradient.
-        Reference: An Empirical Model of Large Batch Training - Section 2.2
-        """
-        ## TODO: Checkout https://arxiv.org/pdf/2001.07384
-
-        assert G_est.ndim == 1, "Gradient vector should be ndim=1"
-        self.G_est = G_est
-        self.grad_log.append(G_est)
-
-        noise = torch.sum(torch.pow(self.G_true - G_est, 2))
-        signal = self.G2
-        self.g_snr = noise / signal
-
-        return self.g_snr
-
-    def gradient_noise_scale(self, B_big=30_000, B_small=1_000, reps=10) -> float:
+    def gradient_noise_scale(self, B_big=30_000, B_small=1_000, reps=100) -> float:
         """
         Calculates the 'unbiased' estimate of the simple noise scale
+        ------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
         """
         ## (True) Batch-Gradients
@@ -134,7 +125,29 @@ class GradientNoiseScale:
         ## Unbiased Gradient Noise Scale
         self.gns = S / G2
 
+        self.gns *= reps
+
         return self.gns
+
+    def gradient_SNR(self, G_est: Tensor, b_size: int) -> float:
+        """
+        Calculates the gradient noise scale equal to the sum of the variances of the individual gradient components,
+        divided by the global norm of the gradient.
+        ------------------------------------------------------------------------------------------------------------
+        Reference: An Empirical Model of Large Batch Training - Section 2.2
+        ## TODO: Checkout https://arxiv.org/pdf/2001.07384
+        """
+        assert G_est.ndim == 1, "Gradient vector should be ndim=1"
+        self.G_est = G_est
+        self.grad_log.append(G_est)
+
+        noise = torch.sum(torch.pow(self.G_true - G_est, 2))
+        signal = self.G2
+        self.g_snr = noise / signal
+
+        self.g_snr *= b_size
+
+        return self.g_snr
 
     ## TODO: implement method
     def critical_batch_size(self) -> int:
