@@ -23,8 +23,8 @@ DATA_PATH = "./data"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
-## TODO: Complete implementation
 def set_seed(seed, device):
+    ## TODO: Complete implementation
     random.seed(seed)
     np.random.seed(seed)
 
@@ -35,8 +35,7 @@ def set_seed(seed, device):
         torch.cuda.manual_seed_all(seed)
 
 
-
-def logger(args, csv_path=CSV_PATH):
+def simple_train_logger(args, csv_path=CSV_PATH):
     args = vars(args)
     args["date"] = datetime.now().date()
     args["time"] = datetime.now().time()
@@ -51,11 +50,10 @@ def logger_to_dataframe(csv_path=CSV_PATH) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
-def visualize_training_gns(GNS: GradientNoiseScale,
-                           loss_log: iter,
-                           gns_log: iter,
-                           args,
-                           figsize=(12, 8)):
+def visualize_training_gns(GNS, loss_log:iter, gns_log:iter, args, figsize=(12, 8)):
+    """
+    Plots training loss and GNS of iterations,
+    """
     plt.figure(figsize=figsize)
     param = sum(p.numel() for p in GNS.model.parameters() if p.requires_grad)
     plt.suptitle(f"CIFAR10-{args.model}AE Training (Batch={args.batch})", fontsize=24)
@@ -74,6 +72,7 @@ def visualize_training_gns(GNS: GradientNoiseScale,
     save_fig = f"{args.model}AE_e{args.epoch}_b{args.batch}"
     plt.savefig(f"./visuals/{save_fig}.png")
     print(f"Figure saved at visuals/{save_fig}.png\n")
+
 
 def show_feature(img_no: int):
     dataset = ImageFolder(DATA_PATH, transform=T.Compose([T.Resize((256, 256)), T.ToTensor()]))
