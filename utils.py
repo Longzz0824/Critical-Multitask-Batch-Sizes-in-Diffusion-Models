@@ -1,8 +1,25 @@
-import numpy as np
+import csv
+from datetime import datetime
+
 import matplotlib.pyplot as plt
-import torch
-from torch import Tensor
+import pandas as pd
+
 from GNS import GradientNoiseScale
+
+
+def logger(args, csv_path="./train_log.csv"):
+    args = vars(args)
+    args["date"] = datetime.now().date()
+    args["time"] = datetime.now().time()
+
+    with open(csv_path, mode='a', newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=args.keys())
+        writer.writeheader()
+        writer.writerow(args)
+
+
+def logger_to_dataframe(csv_path="./train_log.csv") -> pd.DataFrame:
+    return pd.read_csv(csv_path)
 
 
 def visualize_training_gns(GNS: GradientNoiseScale,
@@ -12,7 +29,7 @@ def visualize_training_gns(GNS: GradientNoiseScale,
                            figsize=(12, 8)):
     plt.figure(figsize=figsize)
     param = sum(p.numel() for p in GNS.model.parameters() if p.requires_grad)
-    plt.suptitle(f"CIFAR10-Autoencoder Training (Batch={args.batch}, #Param={param})", fontsize=24)
+    plt.suptitle(f"CIFAR10-{args.model}AE Training (Batch={args.batch})", fontsize=24)
 
     plt.subplot(2, 1, 1)
     plt.title("Training Loss", fontsize=20)
@@ -25,5 +42,7 @@ def visualize_training_gns(GNS: GradientNoiseScale,
     plt.xlabel("Training Iterations", fontsize=16)
     plt.plot(gns_log)
 
-    plt.savefig(f"./visuals/{args.save_fig}.png")
-    print(f"Figure saved at visuals/{args.save_fig}.png\n")
+    save_fig = f"{args.model}AE_e{args.epoch}_b{args.batch}"
+    plt.savefig(f"./visuals/{save_fig}.png")
+    print(f"Figure saved at visuals/{save_fig}.png\n")
+
