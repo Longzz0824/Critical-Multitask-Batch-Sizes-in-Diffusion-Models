@@ -4,9 +4,14 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+from diffusion import create_diffusion
+from diffusion.respace import GaussianDiffusion
+
 from torch import Tensor
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Subset, Dataset
 from tqdm import tqdm
+from typing import Literal
 
 
 def get_gradient_vector(model: nn.Module):
@@ -18,8 +23,6 @@ def get_gradient_vector(model: nn.Module):
 
 ## TODO: Adjust for diffusion training (time-step dependence).
 ## TODO: Investigate EMA (Exp. Moving Avg)
-## TODO: Improve/Correct B_crit calculation.
-## TODO: Refactor prints.
 class GradientNoiseScale:
     """
     Basic GNS Computations for Diffusion Training.
@@ -31,19 +34,17 @@ class GradientNoiseScale:
     ------------------------------------------------------------------------------------
     """
     def __init__(self,
-                 dataset,
-                 model,
-                 loss_fn,
-                 betas: iter,
-                 device: str,
+                 dataset: Dataset,
+                 model: nn.Module,
+                 diffusion: GaussianDiffusion,
+                 device: Literal["cpu", "cuda"],
                  data_portion = 1.0,
                  verbose=True,
                  ):
         self.model = model.to(device)
         self.dataset = dataset
-        self.loss_fn = loss_fn
-        self.optim = optim.AdamW(self.model.parameters(), lr=1e-4, weight_decay=0)
-        self.betas = betas
+        self.optim = optim.AdamW(self.model.parameters())
+        self.diffusion = diffusion
         self.device = device
         self.verbose = verbose
         if verbose:
@@ -80,11 +81,17 @@ class GradientNoiseScale:
         if self.verbose:
             print("\n----------------------------------------------")
             print(f"Calculating G_true w.r.t {SIZE} data points:")
-        for x, _ in tqdm(loader, disable=not self.verbose):
+
+        ## Calculating the gradient vector
+        for x, y in tqdm(loader, disable=not self.verbose):
             x = x.to(self.device)
-            out = self.model(x)
-            loss = self.loss_fn(out, x)
+            y = y.to(self.device)
+            t = torch.randint(0, self.diffusion.num_timesteps, (x.shape[0],), device=self.device)
+            model_kwargs = dict(y=y)
+            loss_dict = self.diffusion.training_losses(self.model, x, t, model_kwargs)
+            loss = loss_dict["loss"].mean()
             loss.backward()
+
             grads = get_gradient_vector(self.model)
 
         self.model.eval()

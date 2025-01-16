@@ -167,11 +167,10 @@ def main(args):
 
     ############# Gradient Noise Scale #############
 
-    GNS = GradientNoiseScale(  ## fixme: Modify GNS class with diffusion model
+    GNS = GradientNoiseScale(  ## fixme: Modify GNS class for diffusion model
         dataset=dataset,
         model=model,
-        loss_fn=diffusion.training_losses,
-        betas=[...],
+        diffusion=diffusion,
         device=device
     ).estimate_gns(B_big=30_000, B_small=1_000)
 
