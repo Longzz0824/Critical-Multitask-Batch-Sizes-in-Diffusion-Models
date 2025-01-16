@@ -17,11 +17,11 @@ from tqdm import tqdm
 import diffusion
 #######################################################
 from GNS import GradientNoiseScale, get_gradient_vector
-from utils import visualize_training_gns
+from utils import visualize_training_gns, logger
 #######################################################
 
 
-## TODO: check implementation
+## TODO: Complete implementation
 def set_seed(seed, device):
     random.seed(seed)
     np.random.seed(seed)
@@ -104,6 +104,7 @@ class LargeAE(nn.Module):
 
 ## TODO: Integrate logger
 def train_cifar(args, device):
+    logger(args)
     ## Arguments
     EPOCH = args.epoch
     B_SIZE = args.batch
@@ -171,7 +172,7 @@ def train_cifar(args, device):
 
             epoch_loss = np.mean(losses)
             epoch_gns = np.mean(gns_scores)
-            print(f"[{epoch+1}/{EPOCH}] Loss: {epoch_loss}\tGNS: {epoch_gns}\t")
+            print(f"[{epoch+1}/{EPOCH}] Loss: {epoch_loss:.4f}\tGNS: {epoch_gns:.4f}\t")
 
     model.eval()
     print("\n-------------Training Completed!--------------")
@@ -181,14 +182,13 @@ def train_cifar(args, device):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, choices=("small", "large"), default="small")
-    parser.add_argument("--epoch", type=int, default=2)
+    parser.add_argument("--model", type=str, choices=("small", "large"), default="large")
+    parser.add_argument("--epoch", type=int, default=5)
     parser.add_argument("--batch", type=int, default=1000)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--g_true", type=float, default=1.0)
     parser.add_argument("--B_big", type=int, default=30_000)
     parser.add_argument("--B_small", type=int, default=1_000)
-    parser.add_argument("--save_fig", type=str, default="cifar_train")
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -200,5 +200,4 @@ if __name__ == "__main__":
 
     ## Visualiation
     visualize_training_gns(GNS, loss_log, gns_log, args=args)
-
     print("Done!")

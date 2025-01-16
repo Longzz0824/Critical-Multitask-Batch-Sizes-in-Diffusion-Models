@@ -51,28 +51,23 @@ class GradientNoiseScale:
         if verbose:
             print("\nInitializing GNS...")
 
-        self.grad_log = []
-        self.B_big = B_big
-        self.B_small = B_small
-        self.G_true = self.get_true_gradient(data_portion, verbose)
-        self.G2 = torch.norm(self.G_true) ** 2
+        self.G_true = self.get_true_gradient(data_portion)
+        self.G2 = torch.einsum("i,i->", self.G_true, self.G_true)
 
         self.G_est = 0  ## Current batch gradient
-        self.g_snr = 0  ## Current signal-to-noise ratio
-        self.gns = 0    ## Initial gradient noise scale
-        self.gradient_noise_scale(B_big, B_small, reps=10)
+        self.gns = 0    ## Gradient noise scale
+
+        #self.estimate_gns(B_big, B_small, reps=100)
 
         if verbose:
             print("\n---------GNS Initialized---------")
             print(f"Device: {device.upper()}")
-            print(f"B_big: {self.B_big}")
-            print(f"B_small: {self.B_small}")
             print(f"dim(G): {tuple(self.G_true.shape)}")
             print(f"G^2: {float(self.G2):.5f}")
             print(f"Initial GNS: {self.gns:.5f}")
             print("----------------------------------")
 
-    def get_true_gradient(self, data_portion=1.0, verbose=True) -> Tensor:
+    def get_true_gradient(self, data_portion=1.0) -> Tensor:
         """
         Calculates the true gradient of the data set (or portion of it). The outcome will be treated as true
         update direction for the model.
@@ -88,9 +83,10 @@ class GradientNoiseScale:
         SIZE = int(len(self.dataset) * data_portion)
         data = Subset(self.dataset, indices=np.random.randint(0, len(self.dataset), size=SIZE))
         loader = DataLoader(data, batch_size=SIZE, shuffle=False)
-        print("\n----------------------------------------------")
-        print(f"Calculating G_true w.r.t {SIZE} data points:")
-        for x, _ in tqdm(loader, disable=not verbose):
+        if self.verbose:
+            print("\n----------------------------------------------")
+            print(f"Calculating G_true w.r.t {SIZE} data points:")
+        for x, _ in tqdm(loader, disable=not self.verbose):
             x = x.to(self.device)
             out = self.model(x)
             loss = self.loss_fn(out, x)
@@ -100,15 +96,16 @@ class GradientNoiseScale:
         self.model.eval()
         return grads
 
-    def gradient_noise_scale(self, B_big=30_000, B_small=1_000, reps=100) -> float:
+    def estimate_gns(self, B_big=30_000, B_small=1_000, reps=100) -> float:
         """
-        Calculates the 'unbiased' estimate of the simple noise scale
-        ------------------------------------------------------------
+        Estimates the 'unbiased' simple noise scale for larger datasets.
+        ----------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
+        ## TODO: Check implementation (negative results)
         """
         ## (True) Batch-Gradients
-        G_big = self.get_true_gradient(B_big / len(self.dataset), verbose=False)
-        G_small = self.get_true_gradient(B_small / len(self.dataset), verbose=False)
+        G_big = self.get_true_gradient(B_big / len(self.dataset))
+        G_small = self.get_true_gradient(B_small / len(self.dataset))
 
         ## Unbiased |G_true|^2 estimate (averaged)
         G2_s = []
@@ -123,9 +120,7 @@ class GradientNoiseScale:
         S *= 1 / ((1 / B_small) - (1 / B_big))
 
         ## Unbiased Gradient Noise Scale
-        self.gns = S / G2
-
-        self.gns *= reps
+        self.gns = reps * (S / G2)
 
         return self.gns
 
@@ -135,26 +130,24 @@ class GradientNoiseScale:
         divided by the global norm of the gradient.
         ------------------------------------------------------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Section 2.2
-        ## TODO: Checkout https://arxiv.org/pdf/2001.07384
         """
         assert G_est.ndim == 1, "Gradient vector should be ndim=1"
         self.G_est = G_est
-        self.grad_log.append(G_est)
 
-        noise = torch.sum(torch.pow(self.G_true - G_est, 2))
+        noise = torch.einsum("i,i->", (self.G_true - G_est), (self.G_true - G_est))
         signal = self.G2
-        self.g_snr = noise / signal
+        self.gns = b_size * (noise / signal)
 
-        self.g_snr *= b_size
+        return self.gns
 
-        return self.g_snr
-
-    ## TODO: implement method
-    def critical_batch_size(self) -> int:
+    def critical_batch_size(self, over_est=1) -> int:
         """
-        Critical Batch-Size computed as GNS.
+        Critical Batch-Size computed as GNS. Usually overestimates by a multiplicative factor.
         """
-        return abs(int(self.gradient_noise_scale()))
+        return int(self.gns) // over_est
+
+    def critical_l_rate(self) -> float:
+        pass
 
 
 
