@@ -32,6 +32,9 @@ from models import DiT_models
 from diffusion import create_diffusion
 from diffusers.models import AutoencoderKL
 
+## Gradient Noise Scale
+from GNS import GradientNoiseScale, get_gradient_vector
+
 
 #################################################################################
 #                             Training Helper Functions                         #
@@ -157,13 +160,29 @@ def main(args):
     if accelerator.is_main_process:
         logger.info(f"DiT Parameters: {sum(p.numel() for p in model.parameters()):,}")
 
-    # Setup optimizer (we used default Adam betas=(0.9, 0.999) and a constant learning rate of 1e-4 in our paper):
-    opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
-
     # Setup data:
     features_dir = f"{args.feature_path}/imagenet256_features"
     labels_dir = f"{args.feature_path}/imagenet256_labels"
     dataset = CustomDataset(features_dir, labels_dir)
+
+    ############# Gradient Noise Scale #############
+
+    GNS = GradientNoiseScale(  ## fixme: Modify GNS class with diffusion model
+        dataset=dataset,
+        model=model,
+        loss_fn=diffusion.training_losses,
+        betas=[...],
+        device=device
+    ).estimate_gns(B_big=30_000, B_small=1_000)
+
+    b_crit = GNS.critical_batch_size()
+    lr_opt = GNS.critical_batch_size()
+    print(f"\nCritical Batch Size: {b_crit}\tCritical Learning Rate: {lr_opt}\n")
+
+    ################################################
+
+    # Setup optimizer and dataloader
+    opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
     loader = DataLoader(
         dataset,
         batch_size=int(args.global_batch_size // accelerator.num_processes),
@@ -203,6 +222,13 @@ def main(args):
             loss = loss_dict["loss"].mean()
             opt.zero_grad()
             accelerator.backward(loss)
+
+            ################ GNS ###############
+            G_est = get_gradient_vector(model)
+            gns = GNS.gradient_SNR(G_est)
+            print(gns)
+            ####################################
+
             opt.step()
             update_ema(ema, model)
 
@@ -246,19 +272,19 @@ def main(args):
 
 
 if __name__ == "__main__":
-    # Default args here will train DiT-XL/2 with the hyperparameters we used in our paper (except training iters).
+    # Default args here will train DiT-S/2 with the hyperparameters we used in our paper (except training iters).
     parser = argparse.ArgumentParser()
     parser.add_argument("--feature-path", type=str, default="features")
     parser.add_argument("--results-dir", type=str, default="results")
     parser.add_argument("--model", type=str, choices=list(DiT_models.keys()), default="DiT-S/2")
     parser.add_argument("--image-size", type=int, choices=[256, 512], default=256)
     parser.add_argument("--num-classes", type=int, default=1000)
-    parser.add_argument("--epochs", type=int, default=1400)
-    parser.add_argument("--global-batch-size", type=int, default=256)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--global-batch-size", type=int, default=2000)
     parser.add_argument("--global-seed", type=int, default=0)
     parser.add_argument("--vae", type=str, choices=["ema", "mse"], default="ema")  # Choice doesn't affect training
     parser.add_argument("--num-workers", type=int, default=4)
     parser.add_argument("--log-every", type=int, default=100)
-    parser.add_argument("--ckpt-every", type=int, default=50_000)
+    parser.add_argument("--ckpt-every", type=int, default=500)
     args = parser.parse_args()
     main(args)

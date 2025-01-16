@@ -37,8 +37,6 @@ class GradientNoiseScale:
                  betas: iter,
                  device: str,
                  data_portion = 1.0,
-                 B_big: int = 30_000,
-                 B_small: int = 1_000,
                  verbose=True,
                  ):
         self.model = model.to(device)
@@ -53,11 +51,7 @@ class GradientNoiseScale:
 
         self.G_true = self.get_true_gradient(data_portion)
         self.G2 = torch.einsum("i,i->", self.G_true, self.G_true)
-
-        self.G_est = 0  ## Current batch gradient
-        self.gns = 0    ## Gradient noise scale
-
-        #self.estimate_gns(B_big, B_small, reps=100)
+        self.gns = 0  ## Current Gradient noise scale
 
         if verbose:
             print("\n---------GNS Initialized---------")
@@ -96,7 +90,7 @@ class GradientNoiseScale:
         self.model.eval()
         return grads
 
-    def estimate_gns(self, B_big=30_000, B_small=1_000, reps=100) -> float:
+    def estimate_gns(self, B_big=30_000, B_small=1_000, reps=100):
         """
         Estimates the 'unbiased' simple noise scale for larger datasets.
         ----------------------------------------------------------------
@@ -122,8 +116,6 @@ class GradientNoiseScale:
         ## Unbiased Gradient Noise Scale
         self.gns = reps * (S / G2)
 
-        return self.gns
-
     def gradient_SNR(self, G_est: Tensor, b_size: int) -> float:
         """
         Calculates the gradient noise scale equal to the sum of the variances of the individual gradient components,
@@ -132,11 +124,10 @@ class GradientNoiseScale:
         Reference: An Empirical Model of Large Batch Training - Section 2.2
         """
         assert G_est.ndim == 1, "Gradient vector should be ndim=1"
-        self.G_est = G_est
 
-        noise = torch.einsum("i,i->", (self.G_true - G_est), (self.G_true - G_est))
-        signal = self.G2
-        self.gns = b_size * (noise / signal)
+        var = self.G_true - G_est
+        noise = torch.einsum("i,i->", var, var)
+        self.gns = b_size * (noise / self.G2)
 
         return self.gns
 
@@ -147,7 +138,10 @@ class GradientNoiseScale:
         return int(self.gns) // over_est
 
     def critical_l_rate(self) -> float:
-        pass
+        ## TODO: Check method
+        lr_max = self.G2 / 2
+        B = self.critical_batch_size()
+        return float(lr_max / (1 + self.gns/B))
 
 
 
