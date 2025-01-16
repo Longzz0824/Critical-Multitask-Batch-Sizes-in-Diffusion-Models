@@ -17,92 +17,10 @@ from tqdm import tqdm
 import diffusion
 #######################################################
 from GNS import GradientNoiseScale, get_gradient_vector
-from utils import visualize_training_gns, logger
+from utils import *
 #######################################################
 
 
-## TODO: Complete implementation
-def set_seed(seed, device):
-    random.seed(seed)
-    np.random.seed(seed)
-
-    if device == "cpu":
-        torch.manual_seed(seed)
-    elif device == "cuda":
-        torch.cuda.manual_seed(seed)
-        torch.cuda.manual_seed_all(seed)
-
-
-class SmallAE(nn.Module):
-    """
-    Simple Autoencoder Network
-    """
-    def __init__(self, img_shape=(3, 32, 32)):
-        super(SmallAE, self).__init__()
-        C, H, W = img_shape
-        self.device = device
-        self.flatten = nn.Flatten()
-        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(C, H, W))
-        self.encoder = nn.Sequential(
-            nn.Linear(C * H * W, 32),
-            nn.ReLU(),
-            nn.Linear(32, 10)
-        )
-        self.decoder = nn.Sequential(
-            nn.Linear(10, 32),
-            nn.ReLU(),
-            nn.Linear(32, C * H * W)
-        )
-
-    def forward(self, x: Tensor):
-        x = x.to(self.device)
-        x = self.flatten(x)
-        x = self.encoder(x)
-        x = self.decoder(x)
-        x = self.unflatten(x)
-        return x
-
-
-class LargeAE(nn.Module):
-    def __init__(self, img_shape=(3, 32, 32)):
-        super(LargeAE, self).__init__()
-        C, H, W = img_shape
-        self.device = device
-        self.flatten = nn.Flatten()
-        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(C, H, W))
-        self.encoder = nn.Sequential(
-            nn.Linear(C * H * W, 256),
-            nn.ReLU(),
-            nn.Linear(256, 128),
-            nn.ReLU(),
-            nn.Linear(128, 64),
-            nn.ReLU(),
-            nn.Linear(64, 32),
-            nn.ReLU(),
-            nn.Linear(32, 10)
-        )
-        self.decoder = nn.Sequential(
-            nn.Linear(10, 32),
-            nn.ReLU(),
-            nn.Linear(32, 64),
-            nn.ReLU(),
-            nn.Linear(64, 128),
-            nn.ReLU(),
-            nn.Linear(128, 256),
-            nn.ReLU(),
-            nn.Linear(256, C * H * W)
-        )
-
-    def forward(self, x: Tensor):
-        x = x.to(self.device)
-        x = self.flatten(x)
-        x = self.encoder(x)
-        x = self.decoder(x)
-        x = self.unflatten(x)
-        return x
-
-
-## TODO: Integrate logger
 def train_cifar(args, device):
     logger(args)
     ## Arguments
@@ -132,8 +50,6 @@ def train_cifar(args, device):
         loss_fn=loss_fn,
         device=device,
         data_portion=args.g_true,
-        B_big=args.B_big,
-        B_small=args.B_small,
         betas=diffusion.create_diffusion("").betas
     )
 
