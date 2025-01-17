@@ -8,7 +8,6 @@ import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
 
-from GNS import GradientNoiseScale
 from torch import Tensor
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder

@@ -166,13 +166,14 @@ def main(args):
     dataset = CustomDataset(features_dir, labels_dir)
 
     ############# Gradient Noise Scale #############
-
-    GNS = GradientNoiseScale(  ## fixme: Modify GNS class for diffusion model
+    ## fixme: Cuda GPU memory error
+    GNS = GradientNoiseScale(
         dataset=dataset,
         model=model,
         diffusion=diffusion,
-        device=device
-    ).estimate_gns(B_big=30_000, B_small=1_000)
+        device=device,
+        data_portion=0.1
+    ).estimate_gns(B_big=5_000, B_small=100)
 
     b_crit = GNS.critical_batch_size()
     lr_opt = GNS.critical_batch_size()

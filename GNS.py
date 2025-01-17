@@ -84,8 +84,8 @@ class GradientNoiseScale:
 
         ## Calculating the gradient vector
         for x, y in tqdm(loader, disable=not self.verbose):
-            x = x.to(self.device)
-            y = y.to(self.device)
+            x = x.to(self.device).squeeze(dim=1)
+            y = y.to(self.device).squeeze(dim=1)
             t = torch.randint(0, self.diffusion.num_timesteps, (x.shape[0],), device=self.device)
             model_kwargs = dict(y=y)
             loss_dict = self.diffusion.training_losses(self.model, x, t, model_kwargs)
@@ -144,7 +144,7 @@ class GradientNoiseScale:
         """
         return int(self.gns) // over_est
 
-    def critical_l_rate(self) -> float:
+    def critical_opt_step(self) -> float:
         ## TODO: Check method
         lr_max = self.G2 / 2
         B = self.critical_batch_size()
