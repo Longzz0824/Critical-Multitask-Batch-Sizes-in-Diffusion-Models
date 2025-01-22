@@ -98,9 +98,11 @@ def show_feature(img_no: int):
 
 
 class FeatureDataset(Dataset):
-    def __init__(self, features_dir=F_DIR, labels_dir=L_DIR):
+    def __init__(self, features_dir=F_DIR, labels_dir=L_DIR, transform=None):
         self.features_dir = features_dir
         self.labels_dir = labels_dir
+        self.transform = transform
+        ## TODO: Extend with transform arguments
 
         self.features_files = sorted(os.listdir(features_dir))
         self.labels_files = sorted(os.listdir(labels_dir))
