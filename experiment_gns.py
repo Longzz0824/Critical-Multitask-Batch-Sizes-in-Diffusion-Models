@@ -38,13 +38,13 @@ if __name__ == "__main__":
     parser.add_argument("--csv_path", type=str, default="gns_log.csv")
     parser.add_argument("--save_fig", type=str, default="./visuals")
     ## TODO: replace bool args with flags
-    parser.add_argument("--init_gns", type=bool, default=True)  # needed?
-    parser.add_argument("--accumulate", type=bool, default=True)
-    parser.add_argument("--verbose", type=bool, default=True)
-    parser.add_argument("--augment", type=bool, default=True)
+    parser.add_argument("--estimate_gns", "-est", action="store_true")  # needed?
+    parser.add_argument("--accumulate", "-acc", action="store_true")
+    parser.add_argument("--verbose", "-v", action="store_true")
+    parser.add_argument("--augment", "-aug", action="store_true")
     args = parser.parse_args()
 
-    ## Initialize model and diffusion
+    ## Initialize model and diffusion object
     model = load_DiT_S2(args.model_path, device=device)
     diff = create_diffusion("", diffusion_steps=args.diff_steps)
 
@@ -55,7 +55,7 @@ if __name__ == "__main__":
         ])
     else: transform = T.ToTensor()
 
-    features = FeatureDataset(transform=transform)  ## TODO: Complete  method in utils
+    features = FeatureDataset(transform=transform)  ## TODO: Complete method in utils
 
     ## Initialize GNS module
     GNS = GradientNoiseScale(
@@ -63,13 +63,14 @@ if __name__ == "__main__":
         dataset=features,
         device=device,
         diff=diff,
+        t_min=args.t_min,
+        t_max=args.t_max,
         data_portion=args.true_portion,
+        accumulate=args.accumulate,
         verbose=args.verbose
     )
-    ## TODO: include t_min/t_max
-    if args.init_gns:
+    if args.estimate_gns:
         GNS = GNS.estimate_gns(B=args.B, b=args.b, reps=args.reps)
-
 
     # one_epoch_gns(GNS, features, 1000)
 

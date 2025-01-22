@@ -37,6 +37,7 @@ class GradientNoiseScale:
                  data_portion: float = 0.2,
                  t_min: Optional[int] = None,
                  t_max: Optional[int] = None,
+                 accumulate=True,
                  verbose=True
                  ):
         ## Object variables
@@ -51,9 +52,11 @@ class GradientNoiseScale:
         self.t_max: int = t_max
         self.n_data: int = len(self.dataset)
         self.mem_size: float = (sys.getsizeof(self) / (1024 ** 3))
-        
+
+        ## Gradient accumulation
+        self.accumulate: bool = accumulate
+        self.n_batches: int = 0
         self.accumulated_grads = None
-        self.n_batches = 0
         
         ## Compute values
         self.gns_track: [float] = []
@@ -91,7 +94,7 @@ class GradientNoiseScale:
 
             return x, y, t
 
-    def get_batch_gradient(self, x: Tensor, y: Tensor, t: Tensor, accumulate=True) -> Tensor:
+    def get_batch_gradient(self, x: Tensor, y: Tensor, t: Tensor) -> Tensor:
         """
         Calculates the gradient vector of a given batch (x, y, t). Optionally, the
         gradients will be accumulated for GPU computation.
@@ -116,15 +119,17 @@ class GradientNoiseScale:
         grads = get_gradient_vector(self.model)
         self.model.eval()
 
-        ## TODO: Gradient Accumulation
-        if accumulate:
+        ## Gradient Accumulation
+        if self.accumulate:
             if self.accumulated_grads is None:
                 self.accumulated_grads = grads
                 self.n_batches = 1
             else:
                 self.accumulated_grads += grads
                 self.n_batches += 1
+
             grads = self.accumulated_grads / self.n_batches
+
         return grads
 
     def get_true_gradient(self, data_portion: float):
@@ -146,7 +151,7 @@ class GradientNoiseScale:
 
         return self.get_batch_gradient(x, y, t)
 
-    def estimate_gns(self, B: int = 1_000, b: int = 100, reps=10):
+    def estimate_gns(self, B: int = 1_000, b: int = 100, reps: int = 10):
         """
         Estimates the 'unbiased' simple noise scale for larger datasets.
         -----------------------------------------------------------------------------
