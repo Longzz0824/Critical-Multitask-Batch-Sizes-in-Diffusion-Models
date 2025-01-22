@@ -164,6 +164,8 @@ class GradientNoiseScale:
 
         ## Calculate unbiased gradient_snr
         self.gns = S / G2
+        self.gns_track.append(self.gns)
+
         return self
 
     def gradient_snr(self, g_est: Tensor, b_size: int) -> float:
@@ -175,7 +177,12 @@ class GradientNoiseScale:
         """
         assert g_est.shape == self.g_true.shape, "Gradient vectors must be in same shape."
         assert b_size >= 1, "Batch size must be greater than 1."
-        return b_size * torch.norm((g_est - self.g_true), p=2) ** 2 / torch.norm(self.g_true, p=2) ** 2
+
+        gns = b_size * torch.norm((g_est - self.g_true), p=2) ** 2 / torch.norm(self.g_true, p=2) ** 2
+        self.gns = gns
+        self.gns_track.append(self.gns)
+
+        return gns
 
     def critical_batch_size(self):
         """

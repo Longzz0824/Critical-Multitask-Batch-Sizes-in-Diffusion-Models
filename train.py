@@ -170,10 +170,10 @@ def main(args):
     GNS = GradientNoiseScale(
         dataset=dataset,
         model=model,
-        diffusion=diffusion,
+        diff=diffusion,
         device=device,
         data_portion=0.1
-    ).estimate_gns(B_big=5_000, B_small=100)
+    ).estimate_gns(B=5_000, b=100, reps=10)
 
     b_crit = GNS.critical_batch_size()
     lr_opt = GNS.critical_batch_size()
