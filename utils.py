@@ -1,19 +1,18 @@
-import os
 import csv
+import os
 import random
+from datetime import datetime
+
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 
 import torch
 import torch.nn as nn
-
 from torch import Tensor
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms as T
-from datetime import datetime
-
 
 F_DIR = "./features/imagenet256_features"
 L_DIR = "./features/imagenet256_labels"
@@ -49,7 +48,7 @@ def logger_to_dataframe(csv_path=CSV_PATH) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
-def visualize_training_gns(GNS, loss_log:iter, gns_log:iter, args, figsize=(12, 8)):
+def visualize_training_gns(GNS, loss_log: iter, gns_log: iter, args, figsize=(12, 8)):
     """
     Plots training loss and GNS of iterations,
     """
@@ -98,9 +97,11 @@ def show_feature(img_no: int):
 
 
 class FeatureDataset(Dataset):
-    def __init__(self, features_dir=F_DIR, labels_dir=L_DIR):
+    def __init__(self, features_dir=F_DIR, labels_dir=L_DIR, transform=None):
         self.features_dir = features_dir
         self.labels_dir = labels_dir
+        self.transform = transform
+        ## TODO: Extend with transform arguments
 
         self.features_files = sorted(os.listdir(features_dir))
         self.labels_files = sorted(os.listdir(labels_dir))
@@ -124,6 +125,7 @@ class SmallAE(nn.Module):
     """
     Simple Autoencoder Network
     """
+
     def __init__(self, img_shape=(3, 32, 32)):
         super(SmallAE, self).__init__()
         C, H, W = img_shape

@@ -116,7 +116,7 @@ class GradientNoiseScale:
             self.optim.zero_grad()
 
         # Calculate the average gradient
-        accumulated_grads /= len(loader)
+        accumulated_grads /= len(loader)  ## fixme: not num_elems; count num_batches
 
         if update:
             # Manually set the gradient and update
