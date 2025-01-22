@@ -35,7 +35,9 @@ class GradientNoiseScale:
                  dataset: Dataset,
                  diff: SpacedDiffusion,
                  device: str,
-                 data_portion=0.2,
+                 data_portion = 0.2,
+                 t_min: int = 0,
+                 t_max: int = 1000,
                  verbose=True
                  ):
         ## Object variables
@@ -44,8 +46,10 @@ class GradientNoiseScale:
         self.diff: SpacedDiffusion = diff
         self.device: str = device
         self.verbose: bool = verbose
-
         self.optim = optim.AdamW(self.model.parameters())
+
+        self.t_min: int = t_min
+        self.t_max: int = t_max
         self.n_data: int = len(self.dataset)
         self.mem_size: float = (sys.getsizeof(self) / (1024 ** 3))
 
@@ -127,7 +131,7 @@ class GradientNoiseScale:
 
         ## Create a random batch
         self.b_true = int(self.n_data * data_portion)
-        x, y, t = self.get_random_batch(self.b_true)
+        x, y, t = self.get_random_batch(self.b_true, min_t=self.t_min, max_t=self.t_max)
 
         if self.verbose:
             print("\n----------------------------------------------")
@@ -142,8 +146,8 @@ class GradientNoiseScale:
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
         """
         ## Estimate S: E[S] = E[|g_est - g_true|]^2
-        small_batch = self.get_random_batch(b)
-        big_batch = self.get_random_batch(B)
+        small_batch = self.get_random_batch(b, min_t=self.t_min, max_t=self.t_max)
+        big_batch = self.get_random_batch(B, min_t=self.t_min, max_t=self.t_max)
         B_grad = self.get_batch_gradient(*big_batch)
         b_grad = self.get_batch_gradient(*small_batch)
 
@@ -152,8 +156,8 @@ class GradientNoiseScale:
         ## Estimate G2 over many (reps) batches: E[G2]^2 = E[g_true]^2
         G2s = []
         for _ in range(reps):
-            small_batch = self.get_random_batch(b)
-            big_batch = self.get_random_batch(B)
+            small_batch = self.get_random_batch(b, min_t=self.t_min, max_t=self.t_max)
+            big_batch = self.get_random_batch(B, min_t=self.t_min, max_t=self.t_max)
             B_grad = self.get_batch_gradient(*big_batch)
             b_grad = self.get_batch_gradient(*small_batch)
 
