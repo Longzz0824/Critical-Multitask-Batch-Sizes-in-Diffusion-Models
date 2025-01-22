@@ -1,2 +1,0 @@
-model,epoch,batch,lr,g_true,B_big,B_small,date,time
-large,2,1000,0.0001,1.0,30000,1000,2025-01-16,04:26:19.192506
