@@ -51,7 +51,10 @@ class GradientNoiseScale:
         self.t_max: int = t_max
         self.n_data: int = len(self.dataset)
         self.mem_size: float = (sys.getsizeof(self) / (1024 ** 3))
-
+        
+        self.accumulated_grads = None
+        self.n_batches = 0
+        
         ## Compute values
         self.gns_track: [float] = []
         self.gns: float = 0.
@@ -115,8 +118,13 @@ class GradientNoiseScale:
 
         ## TODO: Gradient Accumulation
         if accumulate:
-            pass
-
+            if self.accumulated_grads is None:
+                self.accumulated_grads = grads
+                self.n_batches = 1
+            else:
+                self.accumulated_grads += grads
+                self.n_batches += 1
+            grads = self.accumulated_grads / self.n_batches
         return grads
 
     def get_true_gradient(self, data_portion: float):
