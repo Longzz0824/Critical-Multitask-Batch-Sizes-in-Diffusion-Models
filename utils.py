@@ -6,21 +6,41 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+
 import torch
 import torch.nn as nn
 from torch import Tensor
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms as T
+from tqdm import tqdm
 
+from GNS import GradientNoiseScale
 from download import find_model
 from models import DiT_models
+
 
 F_DIR = "./features/imagenet256_features"
 L_DIR = "./features/imagenet256_labels"
 CSV_PATH = "./train_log.csv"
 DATA_PATH = "./data"
 device = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+## TODO: Improve if needed.
+def one_epoch_gns(GNS: GradientNoiseScale, dataset: Dataset, b_size: int):
+    """
+    Calculates gns values throughout one epoch along mini-batches.
+    """
+    ## Testing gns calculation during training
+    gns = 0
+    dataloader = DataLoader(dataset, batch_size=b_size, shuffle=True)
+    for x, y in tqdm(dataloader):
+        t = torch.randint(0, GNS.diff.num_timesteps, (b_size,))
+        gns = GNS.get_batch_gradient(x, y, t)
+
+    print(gns)
+    return gns
 
 
 def load_DiT_S2(path: str, device: str) -> nn.Module:
@@ -59,6 +79,7 @@ def logger_to_dataframe(csv_path=CSV_PATH) -> pd.DataFrame:
     return pd.read_csv(csv_path)
 
 
+## TODO: Adjust for GNS-Diffusion
 def visualize_training_gns(GNS, loss_log: iter, gns_log: iter, args, figsize=(12, 8)):
     """
     Plots training loss and GNS of iterations,

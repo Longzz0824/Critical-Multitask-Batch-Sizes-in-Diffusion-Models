@@ -7,9 +7,7 @@ import torch.optim as optim
 from torch import Tensor
 from torch.utils.data import Dataset, DataLoader
 
-from diffusion import SpacedDiffusion, create_diffusion
-from download import find_model
-from models import DiT_models
+from diffusion import SpacedDiffusion
 from typing import Optional
 
 
@@ -121,7 +119,7 @@ class GradientNoiseScale:
 
         return grads
 
-    def get_true_gradient(self, data_portion):
+    def get_true_gradient(self, data_portion: float):
         """
         Calculates the expected gradient of the data set (or portion of it).
         The outcome will be treated as true update direction for the model.

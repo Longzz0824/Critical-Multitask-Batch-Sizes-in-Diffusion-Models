@@ -8,32 +8,16 @@ import os
 import socket
 import argparse
 
+import torch
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import transforms as T
-from tqdm import tqdm
-
-from diffusion import create_diffusion, SpacedDiffusion
-from GNS import GradientNoiseScale, get_gradient_vector
+from diffusion import create_diffusion
+from GNS import GradientNoiseScale
 from utils import load_DiT_S2, FeatureDataset
 
-
-## TODO: Improve if needed.
-def one_epoch_gns(GNS: GradientNoiseScale, dataset: Dataset, b_size: int):
-    ## Testing gns calculation during training
-    gns = 0
-    dataloader = DataLoader(dataset, batch_size=b_size, shuffle=True)
-    for x, y in tqdm(dataloader):
-        t = torch.randint(0, GNS.diff.num_timesteps, (b_size,))
-        gns = GNS.get_batch_gradient(x, y, t)
-
-    print(gns)
-    return gns
 
 
 if __name__ == "__main__":
@@ -44,8 +28,6 @@ if __name__ == "__main__":
     ## Parse arguments
     parser = argparse.ArgumentParser()
     parser.add_argument("--model_path", type=str, default="./checkpoints/0750000.pt")
-    parser.add_argument("--csv_path", type=str, default="gns_log.csv")
-    parser.add_argument("--save_fig", type=str, default="./visuals")
     parser.add_argument("--true_portion", type=float, default=0.2)
     parser.add_argument("--diff_steps", type=int, default=1000)
     parser.add_argument("--B", type=int, default=1_000)
@@ -53,6 +35,8 @@ if __name__ == "__main__":
     parser.add_argument("--reps", type=int, default=10)
     parser.add_argument("--t_min", type=int, default=None)
     parser.add_argument("--t_max", type=int, default=None)
+    parser.add_argument("--csv_path", type=str, default="gns_log.csv")
+    parser.add_argument("--save_fig", type=str, default="./visuals")
     ## TODO: replace bool args with flags
     parser.add_argument("--init_gns", type=bool, default=True)  # needed?
     parser.add_argument("--accumulate", type=bool, default=True)
