@@ -55,8 +55,6 @@ class GradientNoiseScale:
 
         ## Gradient accumulation
         self.accumulate: bool = accumulate
-        self.n_batches: int = 0
-        self.accumulated_grads = None
         
         ## Compute values
         self.gns_track: [float] = []
@@ -100,37 +98,69 @@ class GradientNoiseScale:
         gradients will be accumulated for GPU computation.
         -----------------------------------------------------------------------------
         """
-        ## Setup model/optim
-        self.model.train()
-        self.optim.zero_grad()
-
-        ## Setup model input
-        x = x.to(self.device).squeeze(dim=1)
-        y = y.to(self.device).squeeze(dim=1)
-        t = t.to(self.device)
-        model_kwargs = dict(y=y)
-
-        ## Calculate loss and backpropagate
-        loss_dict = self.diff.training_losses(self.model, x, t, model_kwargs)
-        loss = loss_dict["loss"].mean()
-        loss.backward()
-
-        ## Get gradients
-        grads = get_gradient_vector(self.model)
-        self.model.eval()
-
-        ## Gradient Accumulation
         if self.accumulate:
-            if self.accumulated_grads is None:
-                self.accumulated_grads = grads
-                self.n_batches = 1
-            else:
-                self.accumulated_grads += grads
-                self.n_batches += 1
+            ## Setup model/optim
+            self.model.train()
+            self.optim.zero_grad()
 
-            grads = self.accumulated_grads / self.n_batches
+            # Split into smaller sub-batches
+            SUB_BATCH_SIZE = 32  # Adjust based on GPU memory
+            n_samples = x.size(0)
+            current_grads = None
 
-        return grads
+            # Split data into sub-batches
+            for i in range(0, n_samples, SUB_BATCH_SIZE):
+                # Select sub-batch
+                x_sub = x[i:i + SUB_BATCH_SIZE].to(self.device).squeeze(dim=1)
+                y_sub = y[i:i + SUB_BATCH_SIZE].to(self.device).squeeze(dim=1)
+                t_sub = t[i:i + SUB_BATCH_SIZE].to(self.device)
+
+                # Prepare model input
+                model_kwargs = dict(y=y_sub)
+
+                # Calculate loss and backpropagate for the sub-batch
+                loss_dict = self.diff.training_losses(self.model, x_sub, t_sub, model_kwargs)
+                loss = loss_dict["loss"].mean()
+                loss.backward()
+
+                # Extract gradients for the sub-batch
+                sub_batch_grads = get_gradient_vector(self.model)
+
+                # Accumulate gradients
+                if current_grads is None:
+                    current_grads = sub_batch_grads
+                else:
+                    current_grads += sub_batch_grads
+
+                # Clear gradients to free GPU memory
+                self.optim.zero_grad()
+
+            # Normalize gradients by the total number of sub-batches
+            current_grads /= (n_samples // SUB_BATCH_SIZE + (n_samples % SUB_BATCH_SIZE != 0))
+
+            return current_grads
+        
+        else:
+            ## Setup model/optim
+            self.model.train()
+            self.optim.zero_grad()
+
+            ## Setup model input
+            x = x.to(self.device).squeeze(dim=1)
+            y = y.to(self.device).squeeze(dim=1)
+            t = t.to(self.device)
+            model_kwargs = dict(y=y)
+
+            ## Calculate loss and backpropagate
+            loss_dict = self.diff.training_losses(self.model, x, t, model_kwargs)
+            loss = loss_dict["loss"].mean()
+            loss.backward()
+
+            ## Get gradients
+            grads = get_gradient_vector(self.model)
+            self.model.eval()
+            return grads
+
 
     def get_true_gradient(self, data_portion: float):
         """
