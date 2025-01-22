@@ -10,6 +10,7 @@ from torch.utils.data import Dataset, DataLoader
 from diffusion import SpacedDiffusion, create_diffusion
 from download import find_model
 from models import DiT_models
+from typing import Optional
 
 
 def get_gradient_vector(model: nn.Module) -> Tensor:
@@ -35,9 +36,9 @@ class GradientNoiseScale:
                  dataset: Dataset,
                  diff: SpacedDiffusion,
                  device: str,
-                 data_portion = 0.2,
-                 t_min: int = 0,
-                 t_max: int = 1000,
+                 data_portion: float = 0.2,
+                 t_min: Optional[int] = None,
+                 t_max: Optional[int] = None,
                  verbose=True
                  ):
         ## Object variables
@@ -202,42 +203,8 @@ class GradientNoiseScale:
 
 
 
-def test_GNS():
-    from utils import FeatureDataset
-    ## Initial variables
-    B_SIZE = 64
-    feature_dataset = FeatureDataset()
-    diffusion = create_diffusion("")
-
-    ## Load DiT-S/2 Model
-    model = DiT_models['DiT-S/2'](input_size=32, num_classes=1000).to(device)
-    PATH = "./checkpoints/0750000.pt"
-    torch.serialization.add_safe_globals([PATH])
-    state_dict = find_model(PATH)
-    model.load_state_dict(state_dict)
-
-    ## Testing GNS initialization
-    GNS = GradientNoiseScale(
-        model=model,
-        dataset=FeatureDataset(),
-        diff=diffusion,
-        device=device
-    ).estimate_gns(B=1_000, b=100, reps=10)
-
-    ## Testing gns calculation during training
-    gns = 0
-    dataloader = DataLoader(feature_dataset, batch_size=B_SIZE, shuffle=True)
-    for x, y in dataloader:
-        t = torch.randint(0, diffusion.num_timesteps, (B_SIZE,))
-        gns = GNS.get_batch_gradient(x, y, t)
-
-    print(type(gns))
-    print(gns)
-
-
 if __name__ == "__main__":
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"\nHost: {socket.gethostname()}")
     print(f"Device: {device.upper()}\n")
 
-    # test_GNS()

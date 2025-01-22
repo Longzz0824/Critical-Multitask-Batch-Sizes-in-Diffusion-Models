@@ -6,13 +6,15 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
 import torch
 import torch.nn as nn
 from torch import Tensor
 from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms as T
+
+from download import find_model
+from models import DiT_models
 
 F_DIR = "./features/imagenet256_features"
 L_DIR = "./features/imagenet256_labels"
@@ -21,8 +23,17 @@ DATA_PATH = "./data"
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
+def load_DiT_S2(path: str, device: str) -> nn.Module:
+    model = DiT_models['DiT-S/2'](input_size=32, num_classes=1000).to(device)
+    torch.serialization.add_safe_globals([path])
+    state_dict = find_model(path)
+    model.load_state_dict(state_dict)
+
+    return model
+
+
+## TODO: Complete implementation
 def set_seed(seed, device):
-    ## TODO: Complete implementation
     random.seed(seed)
     np.random.seed(seed)
 
@@ -96,12 +107,12 @@ def show_feature(img_no: int):
     plt.show()
 
 
+## TODO: Extend with transform arguments
 class FeatureDataset(Dataset):
     def __init__(self, features_dir=F_DIR, labels_dir=L_DIR, transform=None):
         self.features_dir = features_dir
         self.labels_dir = labels_dir
         self.transform = transform
-        ## TODO: Extend with transform arguments
 
         self.features_files = sorted(os.listdir(features_dir))
         self.labels_files = sorted(os.listdir(labels_dir))
