@@ -79,14 +79,13 @@ class GradientNoiseScale:
         max_t = max_t if max_t is not None else self.diff.num_timesteps
         assert 0 <= min_t < max_t <= self.diff.num_timesteps
 
-        ## TODO: Implement time step limits
-
         ## Return a random (shuffled) batch with additional t values
         for x, y in DataLoader(self.dataset, batch_size=b_size, shuffle=True, num_workers=0):
             t = torch.randint(min_t, max_t, size=(x.shape[0],))
+
             return x, y, t
 
-    def get_batch_gradient(self, x: Tensor, y: Tensor, t: Tensor) -> Tensor:
+    def get_batch_gradient(self, x: Tensor, y: Tensor, t: Tensor, accumulate=True) -> Tensor:
         """
         Calculates the gradient vector of a given batch (x, y, t). Optionally, the
         gradients will be accumulated for GPU computation.
@@ -107,11 +106,13 @@ class GradientNoiseScale:
         loss = loss_dict["loss"].mean()
         loss.backward()
 
-        ## TODO: Gradient Accumulation
-
         ## Get gradients
         grads = get_gradient_vector(self.model)
         self.model.eval()
+
+        ## TODO: Gradient Accumulation
+        if accumulate:
+            pass
 
         return grads
 
@@ -189,6 +190,7 @@ class GradientNoiseScale:
         raise NotImplementedError
 
 
+
 def test_GNS():
     from utils import FeatureDataset
     ## Initial variables
@@ -227,4 +229,4 @@ if __name__ == "__main__":
     print(f"\nHost: {socket.gethostname()}")
     print(f"Device: {device.upper()}\n")
 
-    test_GNS()
+    # test_GNS()
