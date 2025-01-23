@@ -18,7 +18,7 @@ def get_gradient_vector(model: nn.Module) -> Tensor:
     return torch.cat([param.grad.view(-1) for param in model.parameters() if param.grad is not None])
 
 
-## TODO: Adjust for diffusion training (time-step dependence).
+
 class GradientNoiseScale:
     """
         Basic GNS Computations for Diffusion Training.
@@ -69,11 +69,13 @@ class GradientNoiseScale:
         print("\n---------GNS Initialized---------")
         print(f"Device: {self.device.upper()}")
         print(f"Memory: {self.mem_size:.2f} GiB")
-        print(f"Model: {self.model.__class__.__name__}")
+        print(f"Grad Acc.: {self.accumulate}")
+        print(f"Model: {self.model.__class__.__name__}\n")
+
         print(f"g_true: {tuple(self.g_true.shape)}")
-        print(f"b_true: {float(self.b_true)}\n")
+        print(f"b_true: {int(self.b_true)}")
         print(f"Initial GNS: {self.gns:.4f}")
-        print("----------------------------------")
+        print("----------------------------------\n")
 
     def get_random_batch(self, b_size: int, min_t=None, max_t=None):
         """
