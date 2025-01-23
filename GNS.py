@@ -36,8 +36,12 @@ class GradientNoiseScale:
                  diff: SpacedDiffusion,
                  device: str,
                  data_portion: float = 0.2,
+                 B: int = 1_000,
+                 b: int = 100,
+                 reps: int = 10,
                  t_min: Optional[int] = None,
                  t_max: Optional[int] = None,
+                 initialize_gns=True,
                  accumulate=True,
                  verbose=True
                  ):
@@ -56,12 +60,18 @@ class GradientNoiseScale:
         ## Time interval for diffusion
         self.t_min: int = t_min
         self.t_max: int = t_max
+        self.B: int = B
+        self.b: int = b
+        self.reps: int = reps
         
         ## Compute values
         self.gns_track: [float] = []
         self.gns: float = 0.
         self.b_true = int(self.n_data * data_portion)
         self.g_true: Tensor = self.get_true_gradient(data_portion)
+
+        if initialize_gns:
+            self.estimate_gns()
 
         if verbose:
             self.print_status()
@@ -181,13 +191,18 @@ class GradientNoiseScale:
 
         return expected_grad
 
-    def estimate_gns(self, B: int = 1_000, b: int = 100, reps: int = 10):
+    def estimate_gns(self):
         """
         Estimates the 'unbiased' simple noise scale for larger datasets.
         -----------------------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
         """
-        assert B > b and reps > 1, "B can't be bigger than b!\n"
+        assert self.B > self.b, "B can't be bigger than b!\n"
+        assert self.reps > 1, "reps must be greater than 1\n!"
+
+        ## TODO: Debug negative results (check numerical problems)!!!
+
+        B, b, reps = self.B, self.b, self.reps
         print(f"Estimating unbiased gns using B={B} b={b} reps={reps}:")
 
         ## Estimate S: E[S] = E[|g_est - g_true|]^2
@@ -215,7 +230,6 @@ class GradientNoiseScale:
         self.gns = S / G2
         self.gns_track.append(self.gns)
 
-        return self
 
     def gradient_snr(self, g_est: Tensor, b_size: int) -> float:
         """

@@ -38,9 +38,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--no_seed", "-ns", action="store_true")
     parser.add_argument("--no_warnings", "-nw", action="store_false")
-
     args = parser.parse_args()
-
     if args.verbose:
         print("\n---------Experiment Arguments---------\n")
         for arg, val in dict(args.__dict__).items():
@@ -60,7 +58,7 @@ if __name__ == "__main__":
 
     if args.no_warnings:
         warnings.filterwarnings("ignore")
-        print("All warnings are disabled !\n")
+        print("All warnings are disabled!\n")
 
     if not args.no_seed:
         set_seed_for_all(42, device)
@@ -82,10 +80,13 @@ if __name__ == "__main__":
         diff=diff,
         t_min=args.t_min,
         t_max=args.t_max,
+        B=args.B,
+        b=args.b,
+        reps=args.reps,
         data_portion=args.true_portion,
         accumulate=args.accumulate,
         verbose=args.verbose
-    ).estimate_gns(B=args.B, b=args.b, reps=args.reps)
+    )
 
     ## one_epoch_gns(GNS, features, 1000)
 
