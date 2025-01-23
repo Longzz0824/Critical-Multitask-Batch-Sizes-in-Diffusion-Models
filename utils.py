@@ -7,12 +7,10 @@ import pandas as pd
 import torch
 import torch.nn as nn
 
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms as T
-from tqdm import tqdm
 
-from GNS import GradientNoiseScale
 from download import find_model
 from models import DiT_models
 
@@ -52,22 +50,6 @@ class FeatureDataset(Dataset):
         return features, labels
 
 
-def one_epoch_gns(GNS: GradientNoiseScale, dataset: Dataset, b_size: int):
-    """
-    Calculates gns values throughout one epoch along mini-batches.
-    TODO: Improve if needed.
-    """
-    ## Testing gns calculation during training
-    gns = 0
-    dataloader = DataLoader(dataset, batch_size=b_size, shuffle=True)
-    for x, y in tqdm(dataloader):
-        t = torch.randint(0, GNS.diff.num_timesteps, (b_size,))
-        gns = GNS.get_batch_gradient(x, y, t)
-
-    print(gns)
-    return gns
-
-
 def load_DiT_S2(path: str, device: str) -> nn.Module:
     model = DiT_models['DiT-S/2'](input_size=32, num_classes=1000).to(device)
     torch.serialization.add_safe_globals([path])
@@ -91,11 +73,7 @@ def set_seed_for_all(seed: int, device: str):
         torch.cuda.manual_seed(seed)
         torch.cuda.manual_seed_all(seed)
 
-    print(f"Python, Numpy, PyTorch seeds({seed}) are set in {device.upper()}.\n")
-
-
-def logger_to_dataframe(csv_path) -> pd.DataFrame:
-    return pd.read_csv(csv_path)
+    print(f"Python, Numpy, PyTorch seeds ({seed}) are set in {device.upper()}.\n")
 
 
 def show_feature(img_no: int):
