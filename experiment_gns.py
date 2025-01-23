@@ -41,7 +41,6 @@ if __name__ == "__main__":
     parser.add_argument("--estimate_gns", "-est", action="store_true")  # needed?
     parser.add_argument("--accumulate", "-acc", action="store_true")
     parser.add_argument("--verbose", "-v", action="store_true")
-    parser.add_argument("--augment", "-aug", action="store_true")
     args = parser.parse_args()
 
     ## Initialize model and diffusion object
@@ -49,13 +48,7 @@ if __name__ == "__main__":
     diff = create_diffusion("", diffusion_steps=args.diff_steps)
 
     ## Initialize dataset
-    if args.augment:
-        transform = T.Compose([
-            ## TODO
-        ])
-    else: transform = T.ToTensor()
-
-    features = FeatureDataset(transform=transform)  ## TODO: Complete method in utils
+    features = FeatureDataset()
 
     ## Initialize GNS module
     GNS = GradientNoiseScale(

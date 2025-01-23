@@ -128,7 +128,6 @@ def show_feature(img_no: int):
     plt.show()
 
 
-## TODO: Extend with transform arguments
 class FeatureDataset(Dataset):
     def __init__(self, features_dir=F_DIR, labels_dir=L_DIR, transform=None):
         self.features_dir = features_dir
@@ -150,7 +149,14 @@ class FeatureDataset(Dataset):
         features = np.load(os.path.join(self.features_dir, feature_file))
         labels = np.load(os.path.join(self.labels_dir, label_file))
 
-        return torch.from_numpy(features), torch.from_numpy(labels)
+        features = torch.from_numpy(features)
+        labels = torch.from_numpy(labels)
+
+        if self.transform is not None:
+            features = self.transform(features)
+            labels = self.transform(labels)
+
+        return features, labels
 
 
 class SmallAE(nn.Module):
