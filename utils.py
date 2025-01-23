@@ -1,5 +1,10 @@
 import os
+import pwd
 import random
+import csv
+import socket
+from argparse import Namespace
+from datetime import datetime
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -11,12 +16,10 @@ from torch.utils.data import Dataset
 from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms as T
 
-from download import find_model
-from models import DiT_models
 
 F_DIR = "./features/imagenet256_features"
 L_DIR = "./features/imagenet256_labels"
-DATA_PATH = "./data"
+DATA_DIR = "./data"
 
 
 class FeatureDataset(Dataset):
@@ -51,6 +54,9 @@ class FeatureDataset(Dataset):
 
 
 def load_DiT_S2(path: str, device: str) -> nn.Module:
+    from download import find_model
+    from models import DiT_models
+
     model = DiT_models['DiT-S/2'](input_size=32, num_classes=1000).to(device)
     torch.serialization.add_safe_globals([path])
     state_dict = find_model(path)
@@ -77,7 +83,7 @@ def set_seed_for_all(seed: int, device: str):
 
 
 def show_feature(img_no: int):
-    dataset = ImageFolder(DATA_PATH, transform=T.Compose([T.Resize((256, 256)), T.ToTensor()]))
+    dataset = ImageFolder(DATA_DIR, transform=T.Compose([T.Resize((256, 256)), T.ToTensor()]))
     idx_to_class = {v: k for k, v in dataset.class_to_idx.items()}
     img, trgt = dataset[img_no]
     label = idx_to_class[trgt]
@@ -98,3 +104,27 @@ def show_feature(img_no: int):
     plt.imshow(arr.transpose(1, 2, 0))
     plt.axis("off")
     plt.show()
+
+
+def experiment_logger(args: Namespace, gns_est: float, start: datetime, end: datetime):
+    ## Handle arguments
+    args = dict(args.__dict__)
+    path = args.pop("csv_path")
+
+    args["date"] = str(start.replace(microsecond=0))
+    args["gns_est"] = gns_est
+    args["runtime"] = str(end - start)
+    args["user"] = pwd.getpwuid(os.getuid())[0]
+    args["host"] = socket.gethostname()
+
+    if os.path.exists(path):
+        with open(path, "a") as file:
+            writer = csv.writer(file)
+            writer.writerow(args.values())
+    else:
+        with open(path, "w") as file:
+            writer = csv.writer(file)
+            writer.writerow(args.keys())
+            writer.writerow(args.values())
+
+    print(f"Experiment saved at {path}.\n")

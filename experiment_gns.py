@@ -5,14 +5,12 @@ DiT-S/2 and the dataset contains 50.000 compressed features (4, 32, 32) of the I
 ------------------------------------------------------------------------------------------------------------------
 """
 import os
+import pwd
 import socket
 import argparse
 import warnings
 import pickle
-
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
+from datetime import datetime
 
 import torch
 from torch.utils.data import Dataset, DataLoader
@@ -21,21 +19,28 @@ from tqdm import tqdm
 
 from diffusion import create_diffusion
 from GNS import GradientNoiseScale
-from utils import load_DiT_S2, FeatureDataset, set_seed_for_all
+from utils import load_DiT_S2, FeatureDataset, set_seed_for_all, experiment_logger
 
 
-## TODO: Make gns calculation during training (gradient_snr)
+CKPT_DIR = "./checkpoints"
+VISUAL_DIR = "./visuals"
+EXP_LOG = "experiment_log.csv"
+
+
 def compute_gns_in_epoch():
     """
     Calculates gns values throughout one epoch along mini-batches.
     """
-    ##
+    ## TODO: Make gns calculation during training (gradient_snr)
     pass
 
 
 def initialize_gns(args: argparse.Namespace) -> GradientNoiseScale:
+    print("Initializing GNS object:\n")
+
     ## Initialize model and diffusion object
-    DiT = load_DiT_S2(args.model, device=device)
+    model_ckpt = f"{args.ckpt_dir}/{args.model}"
+    DiT = load_DiT_S2(model_ckpt, device=device)
     diff = create_diffusion("", diffusion_steps=args.diff_steps)
     print("DiT-S/2 model initialized succesfully.\n")
 
@@ -66,25 +71,25 @@ def parse_arguments() -> argparse.Namespace:
     ## TODO: add helpers
 
     ## GNS parameters
-    parser.add_argument("--model", type=str, default="./checkpoints/0750000.pt")
+    parser.add_argument("--model", type=str, default="0750000.pt")
     parser.add_argument("--true_portion", "-p", type=float, default=0.1)
     parser.add_argument("--diff_steps", "-T", type=int, default=1000)
-    parser.add_argument("--B", "-B", type=int, default=1_000)
-    parser.add_argument("--b", "-b", type=int, default=100)
+    parser.add_argument("--B", "-B", type=int, default=500)
+    parser.add_argument("--b", "-b", type=int, default=50)
     parser.add_argument("--reps", "-r", type=int, default=10)
     parser.add_argument("--t_min", type=int, default=None)
     parser.add_argument("--t_max", type=int, default=None)
-
     ## Experiment options
     parser.add_argument("--accumulate", "-acc", action="store_true")
     parser.add_argument("--epoch", "-e", action="store_false")
     parser.add_argument("--verbose", "-v", action="store_true")
     parser.add_argument("--no_seed", "-ns", action="store_true")
     parser.add_argument("--no_warnings", "-nw", action="store_false")
-
-    ## Save options
-    parser.add_argument("--csv_path", type=str, default="gns_log.csv")
-    parser.add_argument("--save_fig", type=str, default="./visuals")
+    ## Save/load options
+    parser.add_argument("--ckpt_dir", type=str, default=CKPT_DIR)
+    parser.add_argument("--vis_dir", type=str, default=VISUAL_DIR)
+    parser.add_argument("--csv_path", type=str, default=EXP_LOG)
+    parser.add_argument("--save_fig", type=str, default=None)
 
     ## Parse and print
     args = parser.parse_args()
@@ -114,16 +119,15 @@ if __name__ == "__main__":
         set_seed_for_all(42, device)
 
     ## Main computation
-    gns = initialize_gns(args=args)
+    start_time = datetime.now()
+    GNS = initialize_gns(args=args)
+    gns_est = GNS.gns
 
     if args.epoch:
         print("Calculating for an epoch: (WIP)\n")
         compute_gns_in_epoch()
 
-    ## Save results/visuals
-    ## TODO
-
-    log = gns.gns_track
-    ## pickle.dump(log, "experiment_gns_log.pkl")
+    ## Save the experiment
+    experiment_logger(args, gns_est=gns_est, start=start_time, end=datetime.now())
 
     print("Done!\n")
