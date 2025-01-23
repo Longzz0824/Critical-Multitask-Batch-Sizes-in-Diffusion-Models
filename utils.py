@@ -128,3 +128,27 @@ def experiment_logger(args: Namespace, gns_est: float, start: datetime, end: dat
             writer.writerow(args.values())
 
     print(f"Experiment saved at {path}.\n")
+
+
+def log_to_dataframe(path, raw=False):
+    assert os.path.exists(path), f"Couldn't find file: {path}\n"
+    df = pd.read_csv(path)
+
+    ## Adjust data types
+    df["date"] = pd.to_datetime(df["date"])
+    df["runtime"] = pd.to_datetime(df["runtime"])
+    df["runtime"] = df["runtime"].dt.time
+
+    if raw:
+        return df
+
+    ## Dataframes
+    df_meta = df[
+        "date user host ckpt_dir vis_dir save_fig accumulate epoch verbose no_seed no_warnings runtime".split()
+    ]
+    df_param = df[
+        "model diff_steps true_portion t_min t_max".split()
+    ]
+    df_result = df["gns_est runtime t_min t_max".split()
+    ]
+    return df_meta, df_param, df_result
