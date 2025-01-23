@@ -54,7 +54,6 @@ class GradientNoiseScale:
         self.accumulate: bool = accumulate
         self.verbose: bool = verbose
         self.n_data = len(self.dataset)
-        self.mem_size: float = (sys.getsizeof(self) / (1024 ** 3))
         self.device: str = device
 
         ## Time interval for diffusion
@@ -79,7 +78,6 @@ class GradientNoiseScale:
     def print_status(self):
         print("---------GNS Initialized---------")
         print(f"Device: {self.device.upper()}")
-        print(f"Memory: {self.mem_size:.2f} GiB")
         print(f"Grad Acc.: {self.accumulate}")
         print(f"Model: {self.model.__class__.__name__}\n")
 
@@ -200,10 +198,8 @@ class GradientNoiseScale:
         assert self.B > self.b, "B can't be bigger than b!\n"
         assert self.reps > 1, "reps must be greater than 1\n!"
 
-        ## TODO: Debug negative results (check numerical problems)!!!
-
         B, b, reps = self.B, self.b, self.reps
-        print(f"Estimating unbiased gns using B={B} b={b} reps={reps}:")
+        print(f"Estimating Unbiased GNS (B={B} b={b} reps={reps})")
 
         ## Estimate S: E[S] = E[|g_est - g_true|]^2
         small_batch = self.get_random_batch(b, min_t=self.t_min, max_t=self.t_max)
@@ -212,6 +208,7 @@ class GradientNoiseScale:
         b_grad = self.get_batch_gradient(*small_batch)
 
         S = (torch.norm(b_grad, p=2) ** 2 - torch.norm(B_grad, p=2) ** 2) / (1 / b - 1 / B)
+        assert S > 0
 
         ## Estimate G2 over many (reps) batches: E[G2]^2 = E[g_true]^2
         G2s = []
@@ -221,14 +218,18 @@ class GradientNoiseScale:
             B_grad = self.get_batch_gradient(*big_batch)
             b_grad = self.get_batch_gradient(*small_batch)
 
-            G2 = (B * torch.norm(B_grad, p=2) ** 2 - b * torch.norm(b_grad, p=2)) / (B - b)
+            ## fixme: Why are gradient norms becoming negative ??
+            G2 = - (B * torch.norm(B_grad, p=2) ** 2 - b * torch.norm(b_grad, p=2)) / (B - b)
+            assert G2 > 0
             G2s.append(G2)
 
         G2 = torch.mean(torch.stack(G2s), dim=0)
 
         ## Calculate unbiased gradient_snr
-        self.gns = S / G2
+        self.gns = (S / G2).item()
+
         self.gns_track.append(self.gns)
+        print(f"Estimation: {self.gns}\n")
 
 
     def gradient_snr(self, g_est: Tensor, b_size: int) -> float:
