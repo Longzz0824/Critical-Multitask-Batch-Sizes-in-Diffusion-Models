@@ -1,4 +1,5 @@
 import os
+import sys
 import pwd
 import random
 import csv
@@ -152,3 +153,17 @@ def log_to_dataframe(path, raw=False):
     df_result = df["gns_est runtime t_min t_max".split()
     ]
     return df_meta, df_param, df_result
+
+
+def create_experiment_bash_with(args: str, bash_file="run_experiments.sh"):
+    exp_script = f"python experiment_gns.py {args}\n"
+    if os.path.exists(bash_file):
+        with open(bash_file, "a") as file:
+            file.write(exp_script)
+    else:
+        content = f"""#!/bin/bash\n"""
+        with open(bash_file, "w") as file:
+            file.write(content)
+            file.write(exp_script)
+
+        print(f"Created {bash_file} !\n")
