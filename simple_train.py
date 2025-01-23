@@ -1,10 +1,16 @@
-import random
-import socket
+"""
+----------------------------------------------------
+For non-diffusion gns experiments with ImageNet-256.
+!!! Old and faulty version of GNS class !!!
+----------------------------------------------------
+"""
 import argparse
-import random
-import numpy as np
-import matplotlib.pyplot as plt
+import csv
+import socket
+from datetime import datetime
 
+import matplotlib.pyplot as plt
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -14,11 +20,9 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms as T
 from tqdm import tqdm
 
-import diffusion
-#######################################################
 from GNS import get_gradient_vector
-from utils import *
-#######################################################
+
+CSV_PATH = "simple_train_log.csv"
 
 
 class SimpleGNS:
@@ -31,6 +35,7 @@ class SimpleGNS:
      + Scalable Diffusion Models with Transformers (arXiv:2212.09748v2)
     ------------------------------------------------------------------------------------
     """
+
     def __init__(self, dataset, model, loss_fn, device, data_portion=1.0, verbose=True):
         self.model = model.to(device)
         self.dataset = dataset
@@ -87,7 +92,6 @@ class SimpleGNS:
         Estimates the 'unbiased' simple noise scale for larger datasets.
         ----------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
-        ## TODO: Check implementation (negative results)
         """
         ## (True) Batch-Gradients
         G_big = self.get_true_gradient(B_big / len(self.dataset))
@@ -133,7 +137,112 @@ class SimpleGNS:
         ## TODO: Check method
         lr_max = self.G2 / 2
         B = self.critical_batch_size()
-        return float(lr_max / (1 + self.gns/B))
+        return float(lr_max / (1 + self.gns / B))
+
+
+class SmallAE(nn.Module):
+    """
+    Simple Autoencoder Network
+    """
+
+    def __init__(self, img_shape=(3, 32, 32)):
+        super(SmallAE, self).__init__()
+        C, H, W = img_shape
+        self.device = device
+        self.flatten = nn.Flatten()
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(C, H, W))
+        self.encoder = nn.Sequential(
+            nn.Linear(C * H * W, 32),
+            nn.ReLU(),
+            nn.Linear(32, 10)
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(10, 32),
+            nn.ReLU(),
+            nn.Linear(32, C * H * W)
+        )
+
+    def forward(self, x: Tensor):
+        x = x.to(self.device)
+        x = self.flatten(x)
+        x = self.encoder(x)
+        x = self.decoder(x)
+        x = self.unflatten(x)
+        return x
+
+
+class LargeAE(nn.Module):
+    def __init__(self, img_shape=(3, 32, 32)):
+        super(LargeAE, self).__init__()
+        C, H, W = img_shape
+        self.device = device
+        self.flatten = nn.Flatten()
+        self.unflatten = nn.Unflatten(dim=1, unflattened_size=(C, H, W))
+        self.encoder = nn.Sequential(
+            nn.Linear(C * H * W, 256),
+            nn.ReLU(),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Linear(32, 10)
+        )
+        self.decoder = nn.Sequential(
+            nn.Linear(10, 32),
+            nn.ReLU(),
+            nn.Linear(32, 64),
+            nn.ReLU(),
+            nn.Linear(64, 128),
+            nn.ReLU(),
+            nn.Linear(128, 256),
+            nn.ReLU(),
+            nn.Linear(256, C * H * W)
+        )
+
+    def forward(self, x: Tensor):
+        x = x.to(self.device)
+        x = self.flatten(x)
+        x = self.encoder(x)
+        x = self.decoder(x)
+        x = self.unflatten(x)
+        return x
+
+
+def simple_train_visualiser(GNS, loss_log: iter, gns_log: iter, args, figsize=(12, 8)):
+    """
+    Plots training loss and GNS of iterations,
+    """
+    plt.figure(figsize=figsize)
+    param = sum(p.numel() for p in GNS.model.parameters() if p.requires_grad)
+    plt.suptitle(f"CIFAR10-{args.model}AE Training (Batch={args.batch})", fontsize=24)
+
+    plt.subplot(2, 1, 1)
+    plt.title("Training Loss", fontsize=20)
+    plt.ylabel("L2 Loss", fontsize=16)
+    plt.plot(loss_log)
+
+    plt.subplot(2, 1, 2)
+    plt.title("Gradient Noise Scale", fontsize=20)
+    plt.ylabel("B_simple", fontsize=16)
+    plt.xlabel("Training Iterations", fontsize=16)
+    plt.plot(gns_log)
+
+    save_fig = f"{args.model}AE_e{args.epoch}_b{args.batch}"
+    plt.savefig(f"./visuals/{save_fig}.png")
+    print(f"Figure saved at visuals/{save_fig}.png\n")
+
+
+def simple_train_logger(args, csv_path=CSV_PATH):
+    args = vars(args)
+    args["date"] = datetime.now().date()
+    args["time"] = datetime.now().time()
+
+    with open(csv_path, mode='a', newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=args.keys())
+        writer.writeheader()
+        writer.writerow(args)
 
 
 def train_cifar(args, device):
@@ -180,7 +289,7 @@ def train_cifar(args, device):
 
             ## Backpropagation
             x = x.to(device)
-            t = int(torch.randint(0, 1000, (1,), device=device))
+
             out = model(x)
             loss = loss_fn(out, x)
             loss.backward()
@@ -202,7 +311,7 @@ def train_cifar(args, device):
 
             epoch_loss = np.mean(losses)
             epoch_gns = np.mean(gns_scores)
-            print(f"[{epoch+1}/{EPOCH}] Loss: {epoch_loss:.4f}\tGNS: {epoch_gns:.4f}\t")
+            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss:.4f}\tGNS: {epoch_gns:.4f}\t")
 
     model.eval()
     print("\n-------------Training Completed!--------------")
@@ -229,5 +338,5 @@ if __name__ == "__main__":
     GNS, loss_log, gns_log = train_cifar(args, device=device)
 
     ## Visualiation
-    visualize_training_gns(GNS, loss_log, gns_log, args=args)
+    simple_train_visualiser(GNS, loss_log, gns_log, args=args)
     print("Done!")
