@@ -9,6 +9,7 @@ from torch.utils.data import Dataset, DataLoader
 
 from diffusion import SpacedDiffusion
 from typing import Optional
+from tqdm import tqdm
 
 
 def get_gradient_vector(model: nn.Module) -> Tensor:
@@ -40,33 +41,33 @@ class GradientNoiseScale:
                  accumulate=True,
                  verbose=True
                  ):
-        ## Object variables
+        print("Initializing GNS object:\n")
+        ## Initial object variables
         self.model: nn.Module = model
         self.dataset: Dataset = dataset
         self.diff: SpacedDiffusion = diff
-        self.device: str = device
-        self.verbose: bool = verbose
         self.optim = optim.AdamW(self.model.parameters())
+        self.accumulate: bool = accumulate
+        self.verbose: bool = verbose
+        self.n_data = len(self.dataset)
+        self.mem_size: float = (sys.getsizeof(self) / (1024 ** 3))
+        self.device: str = device
 
+        ## Time interval for diffusion
         self.t_min: int = t_min
         self.t_max: int = t_max
-        self.n_data: int = len(self.dataset)
-        self.mem_size: float = (sys.getsizeof(self) / (1024 ** 3))
-
-        ## Gradient accumulation
-        self.accumulate: bool = accumulate
         
         ## Compute values
         self.gns_track: [float] = []
         self.gns: float = 0.
-        self.b_true: int = 0
+        self.b_true = int(self.n_data * data_portion)
         self.g_true: Tensor = self.get_true_gradient(data_portion)
 
         if verbose:
             self.print_status()
 
     def print_status(self):
-        print("\n---------GNS Initialized---------")
+        print("---------GNS Initialized---------")
         print(f"Device: {self.device.upper()}")
         print(f"Memory: {self.mem_size:.2f} GiB")
         print(f"Grad Acc.: {self.accumulate}")
@@ -74,7 +75,7 @@ class GradientNoiseScale:
 
         print(f"g_true: {tuple(self.g_true.shape)}")
         print(f"b_true: {int(self.b_true)}")
-        print(f"Initial GNS: {self.gns:.4f}")
+        print(f"gns: {self.gns:.4f}")
         print("----------------------------------\n")
 
     def get_random_batch(self, b_size: int, min_t=None, max_t=None):
@@ -86,7 +87,7 @@ class GradientNoiseScale:
         ## Limiting time step interval (optional)
         min_t = min_t if min_t is not None else 0
         max_t = max_t if max_t is not None else self.diff.num_timesteps
-        assert 0 <= min_t < max_t <= self.diff.num_timesteps
+        assert 0 <= min_t < max_t <= self.diff.num_timesteps, "Invalid time interval!"
 
         ## Return a random (shuffled) batch with additional t values
         for x, y in DataLoader(self.dataset, batch_size=b_size, shuffle=True, num_workers=0):
@@ -100,11 +101,11 @@ class GradientNoiseScale:
         gradients will be accumulated for GPU computation.
         -----------------------------------------------------------------------------
         """
-        if self.accumulate:
-            ## Setup model/optim
-            self.model.train()
-            self.optim.zero_grad()
+        ## Setup model/optim
+        self.model.train()
+        self.optim.zero_grad()
 
+        if self.accumulate:
             # Split into smaller sub-batches
             SUB_BATCH_SIZE = 32  # Adjust based on GPU memory
             n_samples = x.size(0)
@@ -140,13 +141,10 @@ class GradientNoiseScale:
             # Normalize gradients by the total number of sub-batches
             current_grads /= (n_samples // SUB_BATCH_SIZE + (n_samples % SUB_BATCH_SIZE != 0))
 
+            self.model.eval()
             return current_grads
         
         else:
-            ## Setup model/optim
-            self.model.train()
-            self.optim.zero_grad()
-
             ## Setup model input
             x = x.to(self.device).squeeze(dim=1)
             y = y.to(self.device).squeeze(dim=1)
@@ -160,28 +158,28 @@ class GradientNoiseScale:
 
             ## Get gradients
             grads = get_gradient_vector(self.model)
+
             self.model.eval()
             return grads
 
-
-    def get_true_gradient(self, data_portion: float):
+    def get_true_gradient(self, data_portion: float) -> Tensor:
         """
         Calculates the expected gradient of the data set (or portion of it).
         The outcome will be treated as true update direction for the model.
         -----------------------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Section 2.2
         """
-        assert 0. < data_portion <= 1., "Data portion must be between 0 and 1."
+        assert 0. < data_portion <= 1., "Data portion must be between 0 and 1!\n"
 
         ## Create a random batch
-        self.b_true = int(self.n_data * data_portion)
         x, y, t = self.get_random_batch(self.b_true, min_t=self.t_min, max_t=self.t_max)
 
         if self.verbose:
-            print("\n----------------------------------------------")
-            print(f"Calculating g_true w.r.t {self.b_true} data points:")
+            print(f"Calculating the true gradient (g_true) w.r.t {self.b_true} data points...\n")
 
-        return self.get_batch_gradient(x, y, t)
+        expected_grad = self.get_batch_gradient(x, y, t)
+
+        return expected_grad
 
     def estimate_gns(self, B: int = 1_000, b: int = 100, reps: int = 10):
         """
@@ -189,6 +187,9 @@ class GradientNoiseScale:
         -----------------------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Appendix A.1
         """
+        assert B > b and reps > 1, "B can't be bigger than b!\n"
+        print(f"Estimating unbiased gns using B={B} b={b} reps={reps}:")
+
         ## Estimate S: E[S] = E[|g_est - g_true|]^2
         small_batch = self.get_random_batch(b, min_t=self.t_min, max_t=self.t_max)
         big_batch = self.get_random_batch(B, min_t=self.t_min, max_t=self.t_max)
@@ -199,7 +200,7 @@ class GradientNoiseScale:
 
         ## Estimate G2 over many (reps) batches: E[G2]^2 = E[g_true]^2
         G2s = []
-        for _ in range(reps):
+        for _ in tqdm(range(reps)):
             small_batch = self.get_random_batch(b, min_t=self.t_min, max_t=self.t_max)
             big_batch = self.get_random_batch(B, min_t=self.t_min, max_t=self.t_max)
             B_grad = self.get_batch_gradient(*big_batch)
@@ -223,8 +224,8 @@ class GradientNoiseScale:
         -----------------------------------------------------------------------------
         Reference: An Empirical Model of Large Batch Training - Section 2.2
         """
-        assert g_est.shape == self.g_true.shape, "Gradient vectors must be in same shape."
-        assert b_size >= 1, "Batch size must be greater than 1."
+        assert g_est.shape == self.g_true.shape, "Gradient vectors must be in same shape!"
+        assert b_size >= 1, "Batch size must be greater than 1!"
 
         gns = b_size * torch.norm((g_est - self.g_true), p=2) ** 2 / torch.norm(self.g_true, p=2) ** 2
         self.gns = gns
