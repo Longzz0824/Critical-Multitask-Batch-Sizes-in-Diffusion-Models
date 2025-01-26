@@ -4,6 +4,7 @@ Simple script for experimenting with gradient noise scale values in diffusion tr
 DiT-S/2 and the dataset contains 50.000 compressed features (4, 32, 32) of the ImageNet-256 dataset.
 ------------------------------------------------------------------------------------------------------------------
 """
+import os
 import socket
 import argparse
 import warnings
@@ -20,7 +21,7 @@ VISUAL_DIR = "visuals"
 EXP_LOG = "experiment_log.csv"
 
 
-def compute_gns_in_epoch():
+def compute_gns_in_single_epoch():
     """
     Calculates gns values throughout one epoch along mini-batches.
     """
@@ -61,28 +62,44 @@ def initialize_gns(args: argparse.Namespace) -> GradientNoiseScale:
 
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    ## TODO: add helpers
 
     ## GNS parameters
-    parser.add_argument("--model", type=str, default="0750000.pt")
-    parser.add_argument("--true_portion", "-p", type=float, default=0.1)
-    parser.add_argument("--diff_steps", "-T", type=int, default=1000)
-    parser.add_argument("--B", "-B", type=int, default=500)
-    parser.add_argument("--b", "-b", type=int, default=50)
-    parser.add_argument("--reps", "-r", type=int, default=10)
-    parser.add_argument("--t_min", type=int, default=None)
-    parser.add_argument("--t_max", type=int, default=None)
+    parser.add_argument("--model", type=str, choices=os.listdir(CKPT_DIR),
+                        help="DiT-S/2 checkpoint")
+    parser.add_argument("--true_portion", "-p", type=float, default=0.1,
+                        help="Portion of dataset to compute g_true.")
+    parser.add_argument("--diff_steps", "-T", type=int, default=1000,
+                        help="Number of the diffusion time steps.")
+    parser.add_argument("--B", "-B", type=int, default=500,
+                        help="Big batch size for estimating gns.")
+    parser.add_argument("--b", "-b", type=int, default=50,
+                        help="Big batch size for estimating gns.")
+    parser.add_argument("--reps", "-r", type=int, default=10,
+                        help="Number of repetitions for estimating unbiased g_norm.")
+    parser.add_argument("--t_min", type=int, default=None,
+                        help="Floor value for diffusion steps.")
+    parser.add_argument("--t_max", type=int, default=None,
+                        help="Ceil value for diffusion steps.")
     ## Experiment options
-    parser.add_argument("--accumulate", "-acc", action="store_true")
-    parser.add_argument("--epoch", "-e", action="store_false")
-    parser.add_argument("--verbose", "-v", action="store_true")
-    parser.add_argument("--no_seed", "-ns", action="store_true")
-    parser.add_argument("--no_warnings", "-nw", action="store_false")
+    parser.add_argument("--accumulate", "-acc", action="store_true",
+                        help="Whether to accumulate gradients when calling backward on batches.")
+    parser.add_argument("--epoch", "-e", action="store_true",
+                        help="Whether to compute gns values throughout single epoch.")
+    parser.add_argument("--verbose", "-v", action="store_true",
+                        help="Whether to print terminal.")
+    parser.add_argument("--no_seed", "-ns", action="store_false",
+                        help="Cancel seeds.")
+    parser.add_argument("--no_warnings", "-nw", action="store_true",
+                        help="Don't display warnings.")
     ## Save/load options
-    parser.add_argument("--ckpt_dir", type=str, default=CKPT_DIR)
-    parser.add_argument("--vis_dir", type=str, default=VISUAL_DIR)
-    parser.add_argument("--csv_path", type=str, default=EXP_LOG)
-    parser.add_argument("--save_fig", type=str, default=None)
+    parser.add_argument("--ckpt_dir", type=str, default=CKPT_DIR,
+                        help="Directory where DiT-S/2 checkpoints exist.")
+    parser.add_argument("--vis_dir", type=str, default=VISUAL_DIR,
+                        help="Directory to save the figures into (if any).")
+    parser.add_argument("--csv_path", type=str, default=EXP_LOG,
+                        help="csv file for saving experiment results (log).")
+    parser.add_argument("--save_fig", type=str, default=None,
+                        help="png file name if there is any visual ouput.")
 
     ## Parse and print
     args = parser.parse_args()
@@ -118,9 +135,16 @@ if __name__ == "__main__":
 
     if args.epoch:
         print("Calculating for an epoch: (WIP)\n")
-        compute_gns_in_epoch()
+        compute_gns_in_single_epoch()
 
     ## Save the experiment
-    experiment_logger(args, start=start_time, end=datetime.now(), gns_est=gns_est)
+    experiment_logger(
+        args,
+        start=start_time,
+        end=datetime.now(),
+        gns_est=gns_est,
+        g_true=GNS.g_true,
+        b_true=GNS.b_true
+    )
 
     print("Done!\n")
