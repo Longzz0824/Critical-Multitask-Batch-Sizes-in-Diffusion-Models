@@ -107,8 +107,7 @@ def show_feature(img_no: int):
 
 
 def experiment_logger(args: Namespace,
-                      start:
-                      datetime,
+                      start: datetime,
                       end: datetime,
                       gns_est: float,
                       g_true: float,

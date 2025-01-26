@@ -1,3 +1,0 @@
-model,true_portion,diff_steps,B,b,reps,t_min,t_max,accumulate,epoch,verbose,no_seed,no_warnings,ckpt_dir,vis_dir,save_fig,date,gns_est,runtime,user,host
-0750000.pt,0.1,1000,500,50,10,,,True,True,True,False,True,./checkpoints,./visuals,,2025-01-23 16:52:14,9.597501754760742,0:02:46.377392,cimsir,basalt.cip.ifi.lmu.de
-0750000.pt,0.1,1000,5000,50,10,,,True,True,True,False,False,./checkpoints,./visuals,,2025-01-25 20:03:06,127.2650375366211,0:15:21.813211,cimsir,basalt.cip.ifi.lmu.de
