@@ -73,7 +73,7 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--B", "-B", type=int, default=500,
                         help="Big batch size for estimating gns.")
     parser.add_argument("--b", "-b", type=int, default=50,
-                        help="Big batch size for estimating gns.")
+                        help="Small batch size for estimating gns.")
     parser.add_argument("--reps", "-r", type=int, default=10,
                         help="Number of repetitions for estimating unbiased g_norm.")
     parser.add_argument("--t_min", type=int, default=None,
@@ -144,7 +144,7 @@ if __name__ == "__main__":
         start=start_time,
         end=datetime.now(),
         gns_est=gns_est,
-        g_true=GNS.g_true,
+        g_true=GNS.g_true,  # fixme
         b_true=GNS.b_true
     )
 
