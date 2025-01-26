@@ -18,10 +18,10 @@ from gns_utils import load_DiT_S2, FeatureDataset, set_seed_for_all, experiment_
 
 CKPT_DIR = "checkpoints"
 VISUAL_DIR = "visuals"
-EXP_LOG = "experiment_log.csv"
+# EXP_LOG = "experiment_log.csv"
 
 
-def compute_gns_in_single_epoch():
+def compute_gns_during_single_epoch():
     """
     Calculates gns values throughout one epoch along mini-batches.
     """
@@ -96,7 +96,7 @@ def parse_arguments() -> argparse.Namespace:
                         help="Directory where DiT-S/2 checkpoints exist.")
     parser.add_argument("--vis_dir", type=str, default=VISUAL_DIR,
                         help="Directory to save the figures into (if any).")
-    parser.add_argument("--csv_path", type=str, default=EXP_LOG,
+    parser.add_argument("--csv_path", type=str,
                         help="csv file for saving experiment results (log).")
     parser.add_argument("--save_fig", type=str, default=None,
                         help="png file name if there is any visual ouput.")
@@ -136,7 +136,7 @@ if __name__ == "__main__":
 
     if args.epoch:
         print("Calculating for an epoch: (WIP)\n")
-        compute_gns_in_single_epoch()
+        compute_gns_during_single_epoch()
 
     ## Save the experiment
     experiment_logger(
@@ -148,4 +148,6 @@ if __name__ == "__main__":
         b_true=GNS.b_true
     )
 
-    print("Done!\n")
+    ## Confirm finish
+    print("Done!")
+    print(f"Results saved at: {args.csv_path}\n")
