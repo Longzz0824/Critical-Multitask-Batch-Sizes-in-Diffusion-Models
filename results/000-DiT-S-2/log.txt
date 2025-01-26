@@ -1,7 +1,0 @@
-[[34m2024-12-23 11:21:49[0m] Experiment directory created at results/000-DiT-S-2
-[[34m2024-12-23 11:21:50[0m] DiT Parameters: 32,963,360
-[[34m2024-12-23 11:21:51[0m] Dataset contains 50,000 images (features)
-[[34m2024-12-23 11:21:51[0m] Training for 1 epochs...
-[[34m2024-12-23 11:21:51[0m] Beginning epoch 0...
-[[34m2024-12-23 11:23:57[0m] (step=0000100) Train Loss: 0.4643, Train Steps/Sec: 0.79
-[[34m2024-12-23 11:25:55[0m] Done!

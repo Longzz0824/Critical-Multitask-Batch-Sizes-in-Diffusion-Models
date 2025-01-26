@@ -32,9 +32,6 @@ from models import DiT_models
 from diffusion import create_diffusion
 from diffusers.models import AutoencoderKL
 
-## Gradient Noise Scale
-from GNS import GradientNoiseScale, get_gradient_vector
-
 
 #################################################################################
 #                             Training Helper Functions                         #
@@ -165,22 +162,6 @@ def main(args):
     labels_dir = f"{args.feature_path}/imagenet256_labels"
     dataset = CustomDataset(features_dir, labels_dir)
 
-    ############# Gradient Noise Scale #############
-    ## fixme: Cuda GPU memory error
-    GNS = GradientNoiseScale(
-        dataset=dataset,
-        model=model,
-        diff=diffusion,
-        device=device,
-        data_portion=0.1
-    ).estimate_gns(B=5_000, b=100, reps=10)
-
-    b_crit = GNS.critical_batch_size()
-    lr_opt = GNS.critical_batch_size()
-    print(f"\nCritical Batch Size: {b_crit}\tCritical Learning Rate: {lr_opt}\n")
-
-    ################################################
-
     # Setup optimizer and dataloader
     opt = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=0)
     loader = DataLoader(
@@ -222,12 +203,6 @@ def main(args):
             loss = loss_dict["loss"].mean()
             opt.zero_grad()
             accelerator.backward(loss)
-
-            ################ GNS ###############
-            G_est = get_gradient_vector(model)
-            gns = GNS.gradient_SNR(G_est)
-            print(gns)
-            ####################################
 
             opt.step()
             update_ema(ema, model)

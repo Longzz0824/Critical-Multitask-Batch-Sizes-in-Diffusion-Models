@@ -1,5 +1,4 @@
 import os
-import sys
 import pwd
 import random
 import csv
@@ -18,9 +17,9 @@ from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms as T
 
 
-F_DIR = "./features/imagenet256_features"
-L_DIR = "./features/imagenet256_labels"
-DATA_DIR = "./data"
+F_DIR = "features/imagenet256_features"
+L_DIR = "features/imagenet256_labels"
+DATA_DIR = "data"
 
 
 class FeatureDataset(Dataset):
@@ -155,7 +154,7 @@ def log_to_dataframe(path, raw=False):
     return df_meta, df_param, df_result
 
 
-def create_experiment_bash_with(args: str, bash_file="run_experiments.sh"):
+def create_experiment_bash_with(args: str, bash_file="run_experiment.sh"):
     exp_script = f"python experiment_gns.py {args}\n"
     if os.path.exists(bash_file):
         with open(bash_file, "a") as file:

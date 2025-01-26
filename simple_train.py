@@ -1,7 +1,7 @@
 """
 ----------------------------------------------------
 For non-diffusion gns experiments with ImageNet-256.
-!!! Old and faulty version of GNS class !!!
+!!! Old and faulty version of gns_experiments class !!!
 ----------------------------------------------------
 """
 import argparse
@@ -20,14 +20,14 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import transforms as T
 from tqdm import tqdm
 
-from GNS import get_gradient_vector
+from gns_experiments import get_gradient_vector
 
 CSV_PATH = "simple_train_log.csv"
 
 
 class SimpleGNS:
     """
-    Basic GNS Computations for Autoencoders.
+    Basic gns_experiments Computations for Autoencoders.
     ------------------------------------------------------------------------------------
     References:
      + An Empirical Model of Large Batch Training (arXiv:1812.06162v1)
@@ -44,18 +44,18 @@ class SimpleGNS:
         self.device = device
         self.verbose = verbose
         if verbose:
-            print("\nInitializing GNS...")
+            print("\nInitializing gns_experiments...")
 
         self.G_true = self.get_true_gradient(data_portion)
         self.G2 = torch.einsum("i,i->", self.G_true, self.G_true)
         self.gns = 0  ## Current Gradient noise scale
 
         if verbose:
-            print("\n---------GNS Initialized---------")
+            print("\n---------gns_experiments Initialized---------")
             print(f"Device: {device.upper()}")
             print(f"dim(G): {tuple(self.G_true.shape)}")
             print(f"G^2: {float(self.G2):.5f}")
-            print(f"Initial GNS: {self.gns:.5f}")
+            print(f"Initial gns_experiments: {self.gns:.5f}")
             print("----------------------------------")
 
     def get_true_gradient(self, data_portion=1.0) -> Tensor:
@@ -129,7 +129,7 @@ class SimpleGNS:
 
     def critical_batch_size(self, over_est=1) -> int:
         """
-        Critical Batch-Size computed as GNS. Usually overestimates by a multiplicative factor.
+        Critical Batch-Size computed as gns_experiments. Usually overestimates by a multiplicative factor.
         """
         return int(self.gns) // over_est
 
@@ -212,10 +212,10 @@ class LargeAE(nn.Module):
 
 def simple_train_visualiser(GNS, loss_log: iter, gns_log: iter, args, figsize=(12, 8)):
     """
-    Plots training loss and GNS of iterations,
+    Plots training loss and gns_experiments of iterations,
     """
     plt.figure(figsize=figsize)
-    param = sum(p.numel() for p in GNS.model.parameters() if p.requires_grad)
+    # param = sum(p.numel() for p in gns_experiments.model.parameters() if p.requires_grad)
     plt.suptitle(f"CIFAR10-{args.model}AE Training (Batch={args.batch})", fontsize=24)
 
     plt.subplot(2, 1, 1)
@@ -253,7 +253,7 @@ def train_cifar(args, device):
     L_RATE = args.lr
 
     ## Data loading
-    cifar10 = CIFAR10("./cifar10", train=True, transform=T.ToTensor(), download=True)
+    cifar10 = CIFAR10("../cifar10", train=True, transform=T.ToTensor(), download=True)
     loader = DataLoader(cifar10, batch_size=B_SIZE, shuffle=True)
 
     ## Training initialization
@@ -311,7 +311,7 @@ def train_cifar(args, device):
 
             epoch_loss = np.mean(losses)
             epoch_gns = np.mean(gns_scores)
-            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss:.4f}\tGNS: {epoch_gns:.4f}\t")
+            print(f"[{epoch + 1}/{EPOCH}] Loss: {epoch_loss:.4f}\tgns_experiments: {epoch_gns:.4f}\t")
 
     model.eval()
     print("\n-------------Training Completed!--------------")

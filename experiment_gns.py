@@ -4,26 +4,19 @@ Simple script for experimenting with gradient noise scale values in diffusion tr
 DiT-S/2 and the dataset contains 50.000 compressed features (4, 32, 32) of the ImageNet-256 dataset.
 ------------------------------------------------------------------------------------------------------------------
 """
-import os
-import pwd
 import socket
 import argparse
 import warnings
-import pickle
 from datetime import datetime
 
 import torch
-from torch.utils.data import Dataset, DataLoader
-from torchvision.transforms import transforms as T
-from tqdm import tqdm
-
 from diffusion import create_diffusion
 from GNS import GradientNoiseScale
-from utils import load_DiT_S2, FeatureDataset, set_seed_for_all, experiment_logger
+from gns_utils import load_DiT_S2, FeatureDataset, set_seed_for_all, experiment_logger
 
 
-CKPT_DIR = "./checkpoints"
-VISUAL_DIR = "./visuals"
+CKPT_DIR = "checkpoints"
+VISUAL_DIR = "visuals"
 EXP_LOG = "experiment_log.csv"
 
 
@@ -128,6 +121,6 @@ if __name__ == "__main__":
         compute_gns_in_epoch()
 
     ## Save the experiment
-    experiment_logger(args, gns_est=gns_est, start=start_time, end=datetime.now())
+    experiment_logger(args, start=start_time, end=datetime.now(), gns_est=gns_est)
 
     print("Done!\n")

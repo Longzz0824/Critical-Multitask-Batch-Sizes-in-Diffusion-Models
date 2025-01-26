@@ -1,5 +1,4 @@
 import socket
-import sys
 
 import torch
 import torch.nn as nn
@@ -45,7 +44,6 @@ class GradientNoiseScale:
                  accumulate=True,
                  verbose=True
                  ):
-        print("Initializing GNS object:\n")
         ## Initial object variables
         self.model: nn.Module = model
         self.dataset: Dataset = dataset
@@ -218,7 +216,6 @@ class GradientNoiseScale:
             B_grad = self.get_batch_gradient(*big_batch)
             b_grad = self.get_batch_gradient(*small_batch)
 
-            ## fixme: Why are gradient norms becoming negative ??
             G2 = - (B * torch.norm(B_grad, p=2) ** 2 - b * torch.norm(b_grad, p=2)) / (B - b)
             assert G2 > 0
             G2s.append(G2)
@@ -230,7 +227,6 @@ class GradientNoiseScale:
 
         self.gns_track.append(self.gns)
         print(f"Estimation: {self.gns}\n")
-
 
     def gradient_snr(self, g_est: Tensor, b_size: int) -> float:
         """
