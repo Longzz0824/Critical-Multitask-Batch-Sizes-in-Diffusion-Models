@@ -87,7 +87,7 @@ def parse_arguments() -> argparse.Namespace:
                         help="Whether to compute gns values throughout single epoch.")
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Whether to print terminal.")
-    parser.add_argument("--no_seed", "-ns", action="store_false",
+    parser.add_argument("--no_seed", "-ns", action="store_true",
                         help="Cancel seeds.")
     parser.add_argument("--no_warnings", "-nw", action="store_true",
                         help="Don't display warnings.")
@@ -113,11 +113,12 @@ def parse_arguments() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"\nHost: {socket.gethostname()}")
-    print(f"Device: {device.upper()}\n")
-
     args = parse_arguments()
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    if args.verbose:
+        print(f"\nHost: {socket.gethostname()}")
+        print(f"Device: {device.upper()}\n")
 
     if args.no_warnings:
         ## For cleaner output
