@@ -106,13 +106,22 @@ def show_feature(img_no: int):
     plt.show()
 
 
-def experiment_logger(args: Namespace, gns_est: float, start: datetime, end: datetime):
+def experiment_logger(args: Namespace,
+                      start:
+                      datetime,
+                      end: datetime,
+                      gns_est: float,
+                      g_true: float,
+                      b_true: int
+    ):
     ## Handle arguments
     args = dict(args.__dict__)
     path = args.pop("csv_path")
 
     args["date"] = str(start.replace(microsecond=0))
     args["gns_est"] = gns_est
+    args["g_true"] = g_true
+    args["b_true"] = b_true
     args["runtime"] = str(end - start)
     args["user"] = pwd.getpwuid(os.getuid())[0]
     args["host"] = socket.gethostname()
@@ -144,12 +153,12 @@ def log_to_dataframe(path, raw=False):
 
     ## Dataframes
     df_meta = df[
-        "date user host ckpt_dir vis_dir save_fig accumulate epoch verbose no_seed no_warnings runtime".split()
+        "date runtime user host ckpt_dir vis_dir save_fig accumulate epoch verbose no_seed no_warnings".split()
     ]
     df_param = df[
-        "model diff_steps true_portion t_min t_max".split()
+        "model t_min t_max diff_steps true_portion".split()
     ]
-    df_result = df["gns_est runtime t_min t_max".split()
+    df_result = df["gns_est g_true b_true t_min t_max runtime".split()
     ]
     return df_meta, df_param, df_result
 
