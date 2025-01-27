@@ -18,6 +18,7 @@ from gns_utils import load_DiT_S2, FeatureDataset, set_seed_for_all, experiment_
 
 CKPT_DIR = "checkpoints"
 VISUAL_DIR = "visuals"
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def compute_gns_during_single_epoch():
