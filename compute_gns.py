@@ -18,14 +18,13 @@ from gns_utils import load_DiT_S2, FeatureDataset, set_seed_for_all, experiment_
 
 CKPT_DIR = "checkpoints"
 VISUAL_DIR = "visuals"
-# EXP_LOG = "experiment_log.csv"
 
 
 def compute_gns_during_single_epoch():
     """
-    Calculates gns values throughout one epoch along mini-batches.
+    Calculates gns values throughout one epoch along (large) mini-batches.
     """
-    ## TODO: Make gns calculation during training (gradient_snr)
+    ## TODO: Make gns calculation during training (use GNS.gradient_snr() in training iterations)
     pass
 
 
@@ -112,8 +111,7 @@ def parse_arguments() -> argparse.Namespace:
     return args
 
 
-if __name__ == "__main__":
-    args = parse_arguments()
+def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
     if args.verbose:
@@ -144,10 +142,16 @@ if __name__ == "__main__":
         start=start_time,
         end=datetime.now(),
         gns_est=gns_est,
-        g_true=GNS.g_true,  # fixme
+        g_norm=torch.norm(GNS.g_true, p=2),
         b_true=GNS.b_true
     )
 
     ## Confirm finish
     print("Done!")
     print(f"Results saved at: {args.csv_path}\n")
+
+
+
+if __name__ == "__main__":
+    args = parse_arguments()
+    main(args)
