@@ -1,23 +1,35 @@
 import os
-from gns_utils import create_experiment_bash_with, create_expr_folder, create_expr_files
+from pathlib import Path
+from gns_utils import create_experiment_bash_with, prepare_expr_files
+
+
+CKPT_DIR = Path("checkpoints")
+
+
+def compare_true_portions(
+        name: str,
+        expr_dir: str,
+        models: [str],
+        true_portion: int
+    ):
+    pass
+
 
 
 def compare_estimation_parameters(
         name: str,
+        expr_dir: str,
         models: [str],
         Bb_ratio: int,
-        reps: int = 10,
-        min_size: int = 100,
-        max_size: int = 10_000,
-        b_step: int = 100,
-        **additional_args
-):
+        reps: int,
+        min_size: int,
+        max_size: int,
+        b_step: int,
+    ):
     assert len(models) > 1, "You must specify at least one model!\n"
-
-
-    shell_name, csv_name = create_expr_files(name)
-    other_args = f"--csv_path {csv_name} " + f" ".join([f"--{k} {v}" for k, v in additional_args.items()])
     expr_count = 0
+
+    shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
 
     for model in models:
         ## Check if model exists
@@ -30,8 +42,8 @@ def compare_estimation_parameters(
 
         while min_size <= b < B <= max_size:
             ## Create experiment with given values
-            arguments = f"--model {model} -b {b} -B {B} -r {reps} -acc -nw " + other_args
-            create_experiment_bash_with(args=arguments, bash_file=shell_name)
+            args = f"-b {b} -B {B} -r {reps}"
+            create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
             expr_count += 1
             ## Set new batch size values
             b += b_step
@@ -39,23 +51,21 @@ def compare_estimation_parameters(
 
     print(f"{expr_count} experiments.")
     print(f"Execute in the root-dir using GPUs:")
-    print(f"$ bash gns_experiments/experiment_2/{shell_name}")
     print("------------------------------------------\n")
 
 
-## For Experiment-2
 def compare_models_with_time_intervals(
         name: str,
+        expr_dir: str,
         n_intervals: int,
         models: [str],
         n_steps: int = 1000,
-        **additional_args
     ):
+    assert len(models) > 1, "You must specify at least one model!\n"
     assert n_steps % n_intervals == 0, f"Total diffusion steps ({n_steps}) must be divisible by n_intervals!\n"
 
     ## Process arguments and create .sh/.csv names
-    shell_name, csv_name = create_expr_files(name)
-    other_args = f"--csv_path {csv_name} " + f" ".join([f"--{k} {v}" for k, v in additional_args.items()])
+    shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
 
     ## Create time intervals
     timesteps = [
@@ -67,11 +77,54 @@ def compare_models_with_time_intervals(
     expr_count = 0
     for model in models:
         for (t_min, t_max) in timesteps:
-            arguments = f"--model {model} --t_min {t_min} --t_max {t_max} -acc -nw " + other_args
-            create_experiment_bash_with(args=arguments, bash_file=shell_name)
+            args = f"--t_min {t_min} --t_max {t_max}"
+            create_experiment_bash_with(args, model, csv_path=csv_name, bash_path=shell_name, vis_dir=vis_dir)
             expr_count += 1
 
     print(f"{expr_count} experiments.")
     print(f"Execute in the root-dir using GPUs:")
-    print(f"$ bash gns_experiments/experiment_2/{shell_name}")
     print("------------------------------------------\n")
+
+
+
+if __name__ == "__main__":
+
+    models = sorted(os.listdir(CKPT_DIR))
+
+    ## Experiment 1: Effect of true_portion
+    potrions = (0.1, 0.2, 0.5)
+    for tp in potrions:
+        expr_name = f"all_models_tp_{tp}"
+        compare_true_portions(name=expr_name,
+                              expr_dir="1_true_grad_accuracy",
+                              models=models,
+                              true_portion=tp)
+
+
+    ## Experiment 2: Hyperparameter Search
+    Bb_ratios = (10, 100)
+    reps = (2, 10)
+
+    for ratio in Bb_ratios:
+        for r in reps:
+            expr_name = f"all_models_Bb_{ratio}_reps_{r}"
+            compare_estimation_parameters(name=expr_name,
+                                          expr_dir="2_hyperparameters",
+                                          models=models,
+                                          Bb_ratio=ratio,
+                                          reps=r,
+                                          min_size=100,
+                                          max_size=10_000,
+                                          b_step=100)
+
+
+    ## Experiment 3: Time Intervals
+    intervals = (2, 5, 10, 20)
+
+    for i in intervals:
+        expr_name = f"all_models_{i}_intervals"
+        compare_models_with_time_intervals(name=expr_name,
+                                           expr_dir="3_time_intervals",
+                                           n_intervals=i,
+                                           models=models)
+

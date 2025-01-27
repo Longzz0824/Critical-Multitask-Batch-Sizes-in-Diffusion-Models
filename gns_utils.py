@@ -209,13 +209,13 @@ def prepare_expr_files(expr_name: str, expr_dir: str):
 
     ## Create directories
     expr_dir = base_dir / expr_dir
-    expr_dir.mkdir()
+    expr_dir.mkdir(exist_ok=True)
 
     result_path = expr_dir / "results"
-    result_path.mkdir()
+    result_path.mkdir(exist_ok=True)
 
     visuals_path = expr_dir / "visuals"
-    visuals_path.mkdir()
+    visuals_path.mkdir(exist_ok=True)
 
     ## Create file names
     shell_name = expr_name + ".sh"
