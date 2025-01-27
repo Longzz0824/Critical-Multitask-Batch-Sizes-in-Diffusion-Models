@@ -7,22 +7,24 @@ CKPT_DIR = Path("checkpoints")
 
 
 #######################################################
-#### Experiment-1: Compare true_grad data portions ####
+#### Experiment-1: Compare true_grad data portions #### TODO: Decide if needed !!
 #######################################################
 def compare_true_portions(
         name: str,
         expr_dir: str,
         model: str,
         tp: float,
-        reps: int
+        reps: int,
+        b: int = 50,
+        B: int = 5000
     ):
     assert 0. < tp <= 1., "Data portion must be between 0 and 1."
     ## Process arguments and create .sh/.csv names
     shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
 
     ## Create experiment shells
-    args = f"-p {tp} -r {reps}"
-    create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
+    args = f"-p {tp} -r {reps} -b {b} -B {B}"
+    create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir) 
 
 
 def experiment_1(models: [str], portions: [float]):
