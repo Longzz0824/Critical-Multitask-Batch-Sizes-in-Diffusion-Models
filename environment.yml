@@ -2,13 +2,18 @@ name: DiT
 channels:
   - pytorch
   - nvidia
+  - conda-forge
+  - defaults
 dependencies:
-  - python >= 3.8
-  - pytorch >= 1.13
+  - python>=3.8
+  - pytorch>=1.13
   - torchvision
   - pytorch-cuda=11.7
+  - matplotlib
+  - numpy
+  - pandas
+  - tqdm
   - pip:
-    - timm
-    - diffusers
-    - accelerate
-    - pandas
+      - timm
+      - diffusers
+      - accelerate
