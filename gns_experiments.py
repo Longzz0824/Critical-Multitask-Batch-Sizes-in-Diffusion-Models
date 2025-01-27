@@ -6,6 +6,9 @@ from gns_utils import create_experiment_bash_with, prepare_expr_files
 CKPT_DIR = Path("checkpoints")
 
 
+#######################################################
+#### Experiment-1: Compare true_grad data portions ####
+#######################################################
 def compare_true_portions(
         name: str,
         expr_dir: str,
@@ -35,7 +38,20 @@ def compare_true_portions(
     print("------------------------------------------\n")
 
 
+def experiment_1(models: [str], portions: [float]):
+    for tp in portions:
+        expr_name = f"all_models_tp_{tp}"
+        compare_true_portions(name=expr_name,
+                              expr_dir="1_true_grad_accuracy",
+                              models=models,
+                              portions=tp,
+                              reps=5)
+    print("Done!\n")
 
+
+#######################################################
+######### Experiment-2: Hyperparameter Search #########
+#######################################################
 def compare_estimation_parameters(
         name: str,
         expr_dir: str,
@@ -76,6 +92,24 @@ def compare_estimation_parameters(
     print("------------------------------------------\n")
 
 
+def experiment_2(models: [str], Bb_ratios: [float], reps: [int]):
+    for ratio in Bb_ratios:
+        for r in reps:
+            expr_name = f"all_models_Bb_{ratio}_reps_{r}"
+            compare_estimation_parameters(name=expr_name,
+                                          expr_dir="2_hyperparameters",
+                                          models=models,
+                                          Bb_ratio=ratio,
+                                          reps=r,
+                                          min_size=100,
+                                          max_size=10_000,
+                                          b_step=100)
+
+
+#######################################################
+########## Experiment-3: Time-step Intervals ##########
+#######################################################
+
 def compare_models_with_time_intervals(
         name: str,
         expr_dir: str,
@@ -111,47 +145,28 @@ def compare_models_with_time_intervals(
     print("------------------------------------------\n")
 
 
-
-if __name__ == "__main__":
-
-    all_models = sorted(os.listdir(CKPT_DIR))
-
-    ## Experiment 1: Effect of true_portion
-    best_model = all_models[-1:]
-    portions = (0.1, 0.2, 0.5)
-
-    for tp in portions:
-        expr_name = f"all_models_tp_{tp}"
-        compare_true_portions(name=expr_name,
-                              expr_dir="1_true_grad_accuracy",
-                              models=best_model,
-                              portions=tp,
-                              reps=5)
-
-
-    ## Experiment 2: Hyperparameter Search
-    Bb_ratios = (10, 100)
-    reps = (2, 10)
-
-    for ratio in Bb_ratios:
-        for r in reps:
-            expr_name = f"all_models_Bb_{ratio}_reps_{r}"
-            compare_estimation_parameters(name=expr_name,
-                                          expr_dir="2_hyperparameters",
-                                          models=all_models,
-                                          Bb_ratio=ratio,
-                                          reps=r,
-                                          min_size=100,
-                                          max_size=10_000,
-                                          b_step=100)
-
-
-    ## Experiment 3: Time Intervals
-    intervals = (2, 5, 10, 20)
-
+def experiment_3(models: [str], intervals: [int]):
     for i in intervals:
         expr_name = f"all_models_{i}_intervals"
         compare_models_with_time_intervals(name=expr_name,
                                            expr_dir="3_time_intervals",
                                            n_intervals=i,
                                            models=all_models)
+
+
+
+
+if __name__ == "__main__":
+    ## Get available models (DiT-S/2 checkpoints)
+    all_models = sorted(os.listdir(CKPT_DIR))
+    best_model = all_models[-1:]
+    worst_model = all_models[:1]
+
+    ## Experiment 1: Effect of true_portion
+    experiment_1(models=best_model + worst_model, portions=(0.1, 0.2, 0.5))
+
+    ## Experiment 2: Hyperparameter Search
+    experiment_2(models=best_model + worst_model, Bb_ratios=(10, 100), reps=(2, 10))
+
+    ## Experiment 3: Time Intervals
+    experiment_3(models=all_models, intervals=(2, 5, 10, 20))
