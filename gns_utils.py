@@ -3,6 +3,7 @@ import pwd
 import random
 import csv
 import socket
+from pathlib import Path
 from argparse import Namespace
 from datetime import datetime
 
@@ -20,6 +21,8 @@ from torchvision.transforms import transforms as T
 F_DIR = "features/imagenet256_features"
 L_DIR = "features/imagenet256_labels"
 DATA_DIR = "data"
+EXPR_DIR = "gns_experiments"
+CKPT_DIR = "checkpoints"
 
 
 class FeatureDataset(Dataset):
@@ -110,16 +113,16 @@ def experiment_logger(args: Namespace,
                       start: datetime,
                       end: datetime,
                       gns_est: float,
-                      g_true: float,
+                      g_norm: float,
                       b_true: int
-    ):
+                      ):
     ## Handle arguments
     args = dict(args.__dict__)
     path = args.pop("csv_path")
 
     args["date"] = str(start.replace(microsecond=0))
     args["gns_est"] = gns_est
-    args["g_true"] = g_true
+    args["g_norm"] = g_norm
     args["b_true"] = b_true
     args["runtime"] = str(end - start)
     args["user"] = pwd.getpwuid(os.getuid())[0]
@@ -146,7 +149,6 @@ def log_to_dataframe(path, raw=False):
     df["date"] = pd.to_datetime(df["date"])
     df["runtime"] = pd.to_datetime(df["runtime"])
     df["runtime"] = df["runtime"].dt.time
-
     if raw:
         return df
 
@@ -157,7 +159,7 @@ def log_to_dataframe(path, raw=False):
     df_param = df[
         "model t_min t_max diff_steps true_portion".split()
     ]
-    df_result = df["gns_est g_true b_true t_min t_max runtime".split()
+    df_result = df["gns_est g_norm b_true t_min t_max runtime".split()
     ]
     return df_meta, df_param, df_result
 
@@ -174,3 +176,26 @@ def create_experiment_bash_with(args: str, bash_file="run_experiment.sh"):
             file.write(exp_script)
 
         print(f"Created {bash_file} !\n")
+
+
+def create_expr_folder(fldr_name: str, result_dir: str):
+    assert os.path.exists(EXPR_DIR)
+    path = f"{EXPR_DIR}/{fldr_name}"
+
+    pass
+
+
+def create_expr_files(name: str):
+    shell_name = name + ".sh"
+    csv_name = name + ".csv"
+
+    if os.path.exists(shell_name):
+        os.remove(shell_name)
+        print(f"OVERWRITTEN: {shell_name}")
+    if os.path.exists(csv_name):
+        os.remove(csv_name)
+        print(f"OVERWRITTEN: {csv_name}")
+
+    return shell_name, csv_name
+
+
