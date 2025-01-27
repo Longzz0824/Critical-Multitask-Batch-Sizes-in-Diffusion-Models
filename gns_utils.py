@@ -18,11 +18,11 @@ from torchvision.datasets import ImageFolder
 from torchvision.transforms import transforms as T
 
 
-F_DIR = "features/imagenet256_features"
-L_DIR = "features/imagenet256_labels"
-DATA_DIR = "data"
-EXPR_DIR = "gns_experiments"
-CKPT_DIR = "checkpoints"
+F_DIR = Path("features/imagenet256_features")
+L_DIR = Path("features/imagenet256_labels")
+DATA_DIR = Path("data")
+EXPR_DIR = Path("gns_experiments")
+CKPT_DIR = Path("checkpoints")
 
 
 class FeatureDataset(Dataset):
@@ -115,7 +115,7 @@ def experiment_logger(args: Namespace,
                       gns_est: float,
                       g_norm: float,
                       b_true: int
-                      ):
+    ):
     ## Handle arguments
     args = dict(args.__dict__)
     path = args.pop("csv_path")
@@ -141,7 +141,7 @@ def experiment_logger(args: Namespace,
     print(f"Experiment saved at {path}.\n")
 
 
-def log_to_dataframe(path, raw=False):
+def csv_log_to_dataframe(path, raw=False):
     assert os.path.exists(path), f"Couldn't find file: {path}\n"
     df = pd.read_csv(path)
 
@@ -164,38 +164,75 @@ def log_to_dataframe(path, raw=False):
     return df_meta, df_param, df_result
 
 
-def create_experiment_bash_with(args: str, bash_file="run_experiment.sh"):
-    exp_script = f"python experiment_gns.py {args}\n"
-    if os.path.exists(bash_file):
-        with open(bash_file, "a") as file:
-            file.write(exp_script)
+def create_experiment_bash_with(args: str,
+                                model: str,
+                                bash_path: str,
+                                csv_path: str,
+                                vis_dir: str,
+                                acc=True, nw=True, verbose=False, ns=False, epoch=False,
+                                **other_args
+    ):
+    """
+    Creates a shell script consisting of bash commands for running compute_gns.py
+    ------------------------------------------------------------------------------
+    """
+    assert os.path.exists("compute_gns.py"), "compute_gns.py not found!\n"
+
+    ## Adjust arguments
+    flags = {"-acc": acc, "-nw": nw, "-v": verbose, "-ns": ns, "-e": epoch}
+    flags = " ".join([k for k, v in flags.items() if v])
+    required = f"--model {model} --csv_path {csv_path} --vis_dir {vis_dir}"
+    others = f" ".join([f"--{k} {v}" for k, v in other_args.items()])
+
+    bash = f"python compute_gns.py {required} {flags} {args} {others}\n"
+
+    ## Append if already exists
+    if os.path.exists(bash_path):
+        with open(bash_path, "a") as file:
+            file.write(bash)
+
+    ## Create if doesn't exist
     else:
         content = f"""#!/bin/bash\n"""
-        with open(bash_file, "w") as file:
+        with open(bash_path, "w") as file:
             file.write(content)
-            file.write(exp_script)
-
-        print(f"Created {bash_file} !\n")
-
-
-def create_expr_folder(fldr_name: str, result_dir: str):
-    assert os.path.exists(EXPR_DIR)
-    path = f"{EXPR_DIR}/{fldr_name}"
-
-    pass
+            file.write(bash)
+        print(f"Created {bash_path} !\n")
 
 
-def create_expr_files(name: str):
-    shell_name = name + ".sh"
-    csv_name = name + ".csv"
+def prepare_expr_files(expr_name: str, expr_dir: str):
+    ## Make cwd = EXPR_DIR
+    if Path.cwd() == EXPR_DIR.absolute():
+        base_dir = Path.cwd()
+    else:
+        base_dir = Path.cwd() / EXPR_DIR
 
+    ## Create directories
+    expr_dir = base_dir / expr_dir
+    expr_dir.mkdir()
+
+    result_path = expr_dir / "results"
+    result_path.mkdir()
+
+    visuals_path = expr_dir / "visuals"
+    visuals_path.mkdir()
+
+    ## Create file names
+    shell_name = expr_name + ".sh"
+    shell_path = expr_dir / shell_name
+
+    csv_name = expr_name + ".csv"
+    csv_path = result_path / csv_name
+
+    ## Overwrite experiment
     if os.path.exists(shell_name):
         os.remove(shell_name)
         print(f"OVERWRITTEN: {shell_name}")
+
+    ## Overwrite results
     if os.path.exists(csv_name):
         os.remove(csv_name)
         print(f"OVERWRITTEN: {csv_name}")
 
-    return shell_name, csv_name
-
+    return shell_path, csv_path, visuals_path
 
