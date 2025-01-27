@@ -10,9 +10,29 @@ def compare_true_portions(
         name: str,
         expr_dir: str,
         models: [str],
-        true_portion: int
+        portions: int,
+        reps: int
     ):
-    pass
+    assert len(models) > 1, "You must specify at least one model!"
+    ## Process arguments and create .sh/.csv names
+    shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
+
+    ## Create experiment shells
+    expr_count = 0
+    for model in models:
+        ## Check if model exists
+        path = f"{CKPT_DIR}/{model}"
+        assert os.path.exists(path), f"Checkpoint {path} does not exist!"
+
+        for p in portions:
+            assert 0. < p <= 1.
+            args = f"-p {p} -r {reps}"
+            create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
+            expr_count += 1
+
+    print(f"{expr_count} experiments.")
+    print(f"Execute in the root-dir using GPUs:")
+    print("------------------------------------------\n")
 
 
 
@@ -26,11 +46,12 @@ def compare_estimation_parameters(
         max_size: int,
         b_step: int,
     ):
-    assert len(models) > 1, "You must specify at least one model!\n"
-    expr_count = 0
-
+    assert len(models) > 1, "You must specify at least one model!"
+    ## Process arguments and create .sh/.csv names
     shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
 
+    ## Create experiment shells
+    expr_count = 0
     for model in models:
         ## Check if model exists
         path = f"{CKPT_DIR}/{model}"
@@ -40,6 +61,7 @@ def compare_estimation_parameters(
         b = min_size
         B = Bb_ratio * b
 
+        ## Iterate over batch size values
         while min_size <= b < B <= max_size:
             ## Create experiment with given values
             args = f"-b {b} -B {B} -r {reps}"
@@ -61,9 +83,8 @@ def compare_models_with_time_intervals(
         models: [str],
         n_steps: int = 1000,
     ):
-    assert len(models) > 1, "You must specify at least one model!\n"
-    assert n_steps % n_intervals == 0, f"Total diffusion steps ({n_steps}) must be divisible by n_intervals!\n"
-
+    assert len(models) > 1, "You must specify at least one model!"
+    assert n_steps % n_intervals == 0, f"Total diffusion steps ({n_steps}) must be divisible by n_intervals!"
     ## Process arguments and create .sh/.csv names
     shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
 
@@ -76,6 +97,10 @@ def compare_models_with_time_intervals(
     ## Create experiment shells
     expr_count = 0
     for model in models:
+        ## Check if model exists
+        path = f"{CKPT_DIR}/{model}"
+        assert os.path.exists(path), f"Checkpoint {path} does not exist!"
+
         for (t_min, t_max) in timesteps:
             args = f"--t_min {t_min} --t_max {t_max}"
             create_experiment_bash_with(args, model, csv_path=csv_name, bash_path=shell_name, vis_dir=vis_dir)
@@ -89,16 +114,19 @@ def compare_models_with_time_intervals(
 
 if __name__ == "__main__":
 
-    models = sorted(os.listdir(CKPT_DIR))
+    all_models = sorted(os.listdir(CKPT_DIR))
 
     ## Experiment 1: Effect of true_portion
-    potrions = (0.1, 0.2, 0.5)
-    for tp in potrions:
+    best_model = all_models[-1:]
+    portions = (0.1, 0.2, 0.5)
+
+    for tp in portions:
         expr_name = f"all_models_tp_{tp}"
         compare_true_portions(name=expr_name,
                               expr_dir="1_true_grad_accuracy",
-                              models=models,
-                              true_portion=tp)
+                              models=best_model,
+                              portions=tp,
+                              reps=5)
 
 
     ## Experiment 2: Hyperparameter Search
@@ -110,7 +138,7 @@ if __name__ == "__main__":
             expr_name = f"all_models_Bb_{ratio}_reps_{r}"
             compare_estimation_parameters(name=expr_name,
                                           expr_dir="2_hyperparameters",
-                                          models=models,
+                                          models=all_models,
                                           Bb_ratio=ratio,
                                           reps=r,
                                           min_size=100,
@@ -126,5 +154,4 @@ if __name__ == "__main__":
         compare_models_with_time_intervals(name=expr_name,
                                            expr_dir="3_time_intervals",
                                            n_intervals=i,
-                                           models=models)
-
+                                           models=all_models)

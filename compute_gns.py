@@ -74,7 +74,7 @@ def parse_arguments() -> argparse.Namespace:
                         help="Big batch size for estimating gns.")
     parser.add_argument("--b", "-b", type=int, default=50,
                         help="Small batch size for estimating gns.")
-    parser.add_argument("--reps", "-r", type=int, default=10,
+    parser.add_argument("--reps", "-r", type=int, default=5,
                         help="Number of repetitions for estimating unbiased g_norm.")
     parser.add_argument("--t_min", type=int, default=None,
                         help="Floor value for diffusion steps.")
