@@ -12,45 +12,44 @@ CKPT_DIR = Path("checkpoints")
 def compare_true_portions(
         name: str,
         expr_dir: str,
-        models: [str],
-        portions: int,
+        model: str,
+        tp: float,
         reps: int
     ):
-    assert len(models) > 1, "You must specify at least one model!"
+    assert 0. < tp <= 1., "Data portion must be between 0 and 1."
     ## Process arguments and create .sh/.csv names
     shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
 
     ## Create experiment shells
+    args = f"-p {tp} -r {reps}"
+    create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
+
+
+def experiment_1(models: [str], portions: [float]):
+    assert len(models) > 1, "You must specify at least one model!"
     expr_count = 0
     for model in models:
         ## Check if model exists
         path = f"{CKPT_DIR}/{model}"
         assert os.path.exists(path), f"Checkpoint {path} does not exist!"
 
-        for p in portions:
-            assert 0. < p <= 1.
-            args = f"-p {p} -r {reps}"
-            create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
+        for tp in portions:
+            expr_name = f"model_{model.strip('.pt')}_tp_0{int(tp*10)}"
+            compare_true_portions(name=expr_name,
+                                  expr_dir="1_true_grad_accuracy",
+                                  model=model,
+                                  tp=tp,
+                                  reps=5)
             expr_count += 1
-
     print(f"{expr_count} experiments.")
     print(f"Execute in the root-dir using GPUs:")
     print("------------------------------------------\n")
 
-
-def experiment_1(models: [str], portions: [float]):
-    for tp in portions:
-        expr_name = f"all_models_tp_{tp}"
-        compare_true_portions(name=expr_name,
-                              expr_dir="1_true_grad_accuracy",
-                              models=models,
-                              portions=tp,
-                              reps=5)
     print("Done!\n")
 
 
 #######################################################
-######### Experiment-2: Hyperparameter Search #########
+######### Experiment-2: Hyperparameter Search ######### TODO: alter method
 #######################################################
 def compare_estimation_parameters(
         name: str,
@@ -147,13 +146,11 @@ def compare_models_with_time_intervals(
 
 def experiment_3(models: [str], intervals: [int]):
     for i in intervals:
-        expr_name = f"all_models_{i}_intervals"
+        expr_name = f"models_{i}_intervals"
         compare_models_with_time_intervals(name=expr_name,
                                            expr_dir="3_time_intervals",
                                            n_intervals=i,
-                                           models=all_models)
-
-
+                                           models=models)
 
 
 if __name__ == "__main__":
@@ -166,7 +163,7 @@ if __name__ == "__main__":
     experiment_1(models=best_model + worst_model, portions=(0.1, 0.2, 0.5))
 
     ## Experiment 2: Hyperparameter Search
-    experiment_2(models=best_model + worst_model, Bb_ratios=(10, 100), reps=(2, 10))
+    #experiment_2(models=best_model + worst_model, Bb_ratios=(10, 100), reps=(2, 5))
 
     ## Experiment 3: Time Intervals
-    experiment_3(models=all_models, intervals=(2, 5, 10, 20))
+    #experiment_3(models=all_models, intervals=(2, 5, 10, 20))
