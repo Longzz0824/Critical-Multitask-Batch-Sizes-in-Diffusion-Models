@@ -70,9 +70,9 @@ def parse_arguments() -> argparse.Namespace:
                         help="Portion of dataset to compute g_true.")
     parser.add_argument("--diff_steps", "-T", type=int, default=1000,
                         help="Number of the diffusion time steps.")
-    parser.add_argument("--B", "-B", type=int, default=500,
+    parser.add_argument("--B", "-B", type=int, default=2500,
                         help="Big batch size for estimating gns.")
-    parser.add_argument("--b", "-b", type=int, default=50,
+    parser.add_argument("--b", "-b", type=int, default=25,
                         help="Small batch size for estimating gns.")
     parser.add_argument("--reps", "-r", type=int, default=5,
                         help="Number of repetitions for estimating unbiased g_norm.")
@@ -143,7 +143,7 @@ def main(args):
         start=start_time,
         end=datetime.now(),
         gns_est=gns_est,
-        g_norm=torch.norm(GNS.g_true, p=2),
+        g_norm=torch.norm(GNS.g_true, p=2).item(),
         b_true=GNS.b_true
     )
 
