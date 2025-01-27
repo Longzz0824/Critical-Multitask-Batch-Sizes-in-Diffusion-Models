@@ -206,7 +206,7 @@ class GradientNoiseScale:
         b_grad = self.get_batch_gradient(*small_batch)
 
         S = (torch.norm(b_grad, p=2) ** 2 - torch.norm(B_grad, p=2) ** 2) / (1 / b - 1 / B)
-        assert S > 0
+        assert S > 0, "Noise became negative!\n"
 
         ## Estimate G2 over many (reps) batches: E[G2]^2 = E[g_true]^2
         G2s = []
@@ -216,8 +216,8 @@ class GradientNoiseScale:
             B_grad = self.get_batch_gradient(*big_batch)
             b_grad = self.get_batch_gradient(*small_batch)
 
-            G2 = - (B * torch.norm(B_grad, p=2) ** 2 - b * torch.norm(b_grad, p=2)) / (B - b)
-            assert G2 > 0
+            G2 = (B * torch.norm(B_grad, p=2) ** 2 - b * torch.norm(b_grad, p=2)) / (B - b)
+            assert G2 > 0, "Signal became negative!\n"
             G2s.append(G2)
 
         G2 = torch.mean(torch.stack(G2s), dim=0)
