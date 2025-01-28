@@ -7,7 +7,7 @@ CKPT_DIR = Path("checkpoints")
 
 
 #######################################################
-#### Experiment-1: Compare true_grad data portions #### TODO: Decide if needed !!
+#### Experiment-1: Compare true_grad data portions ####
 #######################################################
 def compare_true_portions(
         name: str,
@@ -27,7 +27,7 @@ def compare_true_portions(
     create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir) 
 
 
-def experiment_1(models: [str], portions: [float]):
+def create_experiment_1(models: [str], portions: [float]):
     assert len(models) > 1, "You must specify at least one model!"
     expr_count = 0
     for model in models:
@@ -56,47 +56,48 @@ def experiment_1(models: [str], portions: [float]):
 def compare_estimation_parameters(
         name: str,
         expr_dir: str,
-        models: [str],
+        model: str,
         b_values: [int],
         Bb_ratio: int,
         reps: int,
         max_size: int = 50_000
     ):
-    assert len(models) > 1, "You must specify at least one model!"
     ## Process arguments and create .sh/.csv names
     shell_name, csv_name, vis_dir = prepare_expr_files(expr_name=name, expr_dir=expr_dir)
 
     ## Create experiment shells
     expr_count = 0
-    for model in models:
-        ## Check if model exists
-        path = f"{CKPT_DIR}/{model}"
-        assert os.path.exists(path), f"Checkpoint {path} does not exist!"
+    ## Check if model exists
+    path = f"{CKPT_DIR}/{model}"
+    assert os.path.exists(path), f"Checkpoint {path} does not exist!"
 
-        ## Compute B's from given b_values
-        for b in b_values:
-            B = Bb_ratio * b
-            if B <= max_size:
-                args = f"-b {b} -B {B} -r {reps}"
-                create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
-                expr_count += 1
+    ## Compute B's from given b_values
+    for b in b_values:
+        B = Bb_ratio * b
+        if B <= max_size:
+            args = f"-b {b} -B {B} -r {reps}"
+            create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
+            expr_count += 1
 
     print(f"{expr_count} experiments.")
     print(f"Execute in the root-dir using GPUs:")
     print("------------------------------------------\n")
 
 
-def experiment_2(models: [str], b_values: [int], Bb_ratios: [float], reps: [int]):
-    for ratio in Bb_ratios:
-        for r in reps:
-            expr_name = f"all_models_Bb_{ratio}_reps_{r}"
-            compare_estimation_parameters(name=expr_name,
-                                          expr_dir="2_hyperparameters",
-                                          models=models,
-                                          b_values=b_values,
-                                          Bb_ratio=ratio,
-                                          reps=r,
-                                          max_size=20_000)
+def create_experiment_2(models: [str], b_values: [int], Bb_ratios: [float], reps: [int]):
+    assert len(models) > 1, "You must specify at least one model!"
+
+    for model in models:
+        for ratio in Bb_ratios:
+            for r in reps:
+                expr_name = f"model_{model.strip('.pt')}_Bb_{ratio}_reps_{r}"
+                compare_estimation_parameters(name=expr_name,
+                                              expr_dir="2_hyperparameters",
+                                              model=model,
+                                              b_values=b_values,
+                                              Bb_ratio=ratio,
+                                              reps=r,
+                                              max_size=20_000)
 
 
 #######################################################
@@ -137,7 +138,7 @@ def compare_models_with_time_intervals(
     print("------------------------------------------\n")
 
 
-def experiment_3(models: [str], intervals: [int]):
+def create_experiment_3(models: [str], intervals: [int]):
     for i in intervals:
         expr_name = f"models_{i}_intervals"
         compare_models_with_time_intervals(name=expr_name,
@@ -150,14 +151,18 @@ def experiment_3(models: [str], intervals: [int]):
 if __name__ == "__main__":
     ## Get available models (DiT-S/2 checkpoints)
     all_models = sorted(os.listdir(CKPT_DIR))
-    best_model = all_models[-1:]
-    worst_model = all_models[:1]
+    print("\nAll available DiT-S/2 models:")
+
+    for i, model in enumerate(all_models):
+        print(f"{i+1}) {model}")
+    print("\n")
 
     ## Experiment 1: Effect of true_portion
-    experiment_1(models=reversed(all_models), portions=(0.1, 0.2, 0.5))
+    # create_experiment_1(models=all_models[-10:-2], portions=(0.1, 0.2, 0.5))
 
     ## Experiment 2: Hyperparameter Search
-    #experiment_2(models=best_model + worst_model, Bb_ratios=(10, 100), reps=(2, 5))
+    models = all_models[:5] + all_models[-2:-10:-2]
+    create_experiment_2(models=models, b_values=(50, 100, 1000), Bb_ratios=(10, 100), reps=(2, 5))
 
     ## Experiment 3: Time Intervals
     #experiment_3(models=all_models, intervals=(2, 5, 10, 20))
