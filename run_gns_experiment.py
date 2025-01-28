@@ -1,6 +1,5 @@
 import os
 import socket
-import logging
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 
@@ -18,7 +17,6 @@ def run_experiment_folder(args: Namespace):
     print("Directory Content:\n-------------------------------")
     for c in reversed(contents):
         print(c)
-
     print("-------------------------------\n")
 
     for shell in sorted([file for file in contents if file.endswith(".sh")]):
@@ -35,14 +33,13 @@ if __name__ == "__main__":
 
     parser = ArgumentParser()
     parser.add_argument("--expr_dir", "-ex", choices=list(os.walk(EXPR_DIR))[0][1], required=True)
+    parser.add_argument("--repeat", "-rep", type=int, default=1)
     args = parser.parse_args()
 
-    # Configure logging
-    logging.basicConfig(
-        filename=EXPR_DIR / args.expr_dir / "results/output.log",
-        level=logging.INFO,
-        format="%(message)s"
-    )
-
-    run_experiment_folder(args)
+    for _ in range(args.repeat):
+        try:
+            run_experiment_folder(args)
+        except AssertionError as e:
+            print(f"FAILED: {e}\n")
+            print(f"ABORTING!\n-------------------------------\n")
 
