@@ -152,10 +152,11 @@ def split_dataframe(df: pd.DataFrame):
     ]
     df_result = df["gns_est g_norm b_true t_min t_max runtime".split()
     ]
+
     return df_meta, df_param, df_result
 
 
-def csv_log_to_dataframe(path, raw=False):
+def csv_log_to_dataframe(path, split=False):
     assert os.path.exists(path), f"Couldn't find file: {path}\n"
     df = pd.read_csv(path)
 
@@ -163,7 +164,8 @@ def csv_log_to_dataframe(path, raw=False):
     df["date"] = pd.to_datetime(df["date"])
     df["runtime"] = pd.to_datetime(df["runtime"])
     df["runtime"] = df["runtime"].dt.time
-    if raw:
+
+    if split:
         return df
     else:
         return split_dataframe(df)
