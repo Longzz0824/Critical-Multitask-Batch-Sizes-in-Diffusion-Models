@@ -1,3 +1,4 @@
 model,true_portion,diff_steps,B,b,reps,t_min,t_max,accumulate,epoch,verbose,no_seed,no_warnings,ckpt_dir,vis_dir,save_fig,date,gns_est,g_norm,b_true,runtime,user,host
 0010000.pt,0.1,1000,2500,25,5,,,True,False,False,False,True,checkpoints,/home/c/cimsir/GenAI_Practical/gns_experiments/1_true_grad_accuracy/visuals,,2025-01-28 01:20:48,2.05196213722229,1.030377984046936,5000,0:04:24.266915,cimsir,basalt.cip.ifi.lmu.de
 0010000.pt,0.1,1000,2500,25,5,,,True,False,False,False,True,checkpoints,/home/c/cimsir/GenAI_Practical/gns_experiments/1_true_grad_accuracy/visuals,,2025-01-28 02:35:00,0.8255245685577393,1.026068925857544,5000,0:04:24.933039,cimsir,basalt.cip.ifi.lmu.de
+0010000.pt,0.1,1000,2500,25,5,,,True,False,False,False,True,checkpoints,/home/c/cimsir/GenAI_Practical/gns_experiments/1_true_grad_accuracy/visuals,,2025-01-28 17:07:36,0.7463713884353638,1.0237401723861694,5000,0:04:31.742532,cimsir,basalt.cip.ifi.lmu.de
