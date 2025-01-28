@@ -43,25 +43,24 @@ def experiment_1(models: [str], portions: [float]):
                                   tp=tp,
                                   reps=5)
             expr_count += 1
+
     print(f"{expr_count} experiments.")
     print(f"Execute in the root-dir using GPUs:")
     print("------------------------------------------\n")
-
     print("Done!\n")
 
 
 #######################################################
-######### Experiment-2: Hyperparameter Search ######### TODO: alter method
+######### Experiment-2: Hyperparameter Search #########
 #######################################################
 def compare_estimation_parameters(
         name: str,
         expr_dir: str,
         models: [str],
+        b_values: [int],
         Bb_ratio: int,
         reps: int,
-        min_size: int,
-        max_size: int,
-        b_step: int,
+        max_size: int = 50_000
     ):
     assert len(models) > 1, "You must specify at least one model!"
     ## Process arguments and create .sh/.csv names
@@ -74,43 +73,35 @@ def compare_estimation_parameters(
         path = f"{CKPT_DIR}/{model}"
         assert os.path.exists(path), f"Checkpoint {path} does not exist!"
 
-        ## Initialize set sizes (smallest)
-        b = min_size
-        B = Bb_ratio * b
-
-        ## Iterate over batch size values
-        while min_size <= b < B <= max_size:
-            ## Create experiment with given values
-            args = f"-b {b} -B {B} -r {reps}"
-            create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
-            expr_count += 1
-            ## Set new batch size values
-            b += b_step
+        ## Compute B's from given b_values
+        for b in b_values:
             B = Bb_ratio * b
+            if B <= max_size:
+                args = f"-b {b} -B {B} -r {reps}"
+                create_experiment_bash_with(args, model, bash_path=shell_name, csv_path=csv_name, vis_dir=vis_dir)
+                expr_count += 1
 
     print(f"{expr_count} experiments.")
     print(f"Execute in the root-dir using GPUs:")
     print("------------------------------------------\n")
 
 
-def experiment_2(models: [str], Bb_ratios: [float], reps: [int]):
+def experiment_2(models: [str], b_values: [int], Bb_ratios: [float], reps: [int]):
     for ratio in Bb_ratios:
         for r in reps:
             expr_name = f"all_models_Bb_{ratio}_reps_{r}"
             compare_estimation_parameters(name=expr_name,
                                           expr_dir="2_hyperparameters",
                                           models=models,
+                                          b_values=b_values,
                                           Bb_ratio=ratio,
                                           reps=r,
-                                          min_size=100,
-                                          max_size=10_000,
-                                          b_step=100)
+                                          max_size=20_000)
 
 
 #######################################################
 ########## Experiment-3: Time-step Intervals ##########
 #######################################################
-
 def compare_models_with_time_intervals(
         name: str,
         expr_dir: str,
@@ -155,6 +146,7 @@ def experiment_3(models: [str], intervals: [int]):
                                            models=models)
 
 
+
 if __name__ == "__main__":
     ## Get available models (DiT-S/2 checkpoints)
     all_models = sorted(os.listdir(CKPT_DIR))
@@ -162,7 +154,7 @@ if __name__ == "__main__":
     worst_model = all_models[:1]
 
     ## Experiment 1: Effect of true_portion
-    experiment_1(models=best_model + worst_model, portions=(0.1, 0.2, 0.5))
+    experiment_1(models=reversed(all_models), portions=(0.1, 0.2, 0.5))
 
     ## Experiment 2: Hyperparameter Search
     #experiment_2(models=best_model + worst_model, Bb_ratios=(10, 100), reps=(2, 5))
