@@ -115,7 +115,7 @@ def experiment_logger(args: Namespace,
                       gns_est: float,
                       g_norm: float,
                       b_true: int
-    ):
+                      ):
     ## Handle arguments
     args = dict(args.__dict__)
     path = args.pop("csv_path")
@@ -139,7 +139,6 @@ def experiment_logger(args: Namespace,
             writer.writerow(args.values())
 
     print(f"Experiment saved at {path}.\n")
-
 
 
 def split_dataframe(df: pd.DataFrame):
@@ -178,7 +177,7 @@ def create_experiment_bash_with(args: str,
                                 vis_dir: str,
                                 acc=True, nw=True, verbose=False, ns=False, epoch=False,
                                 **other_args
-    ):
+                                ):
     """
     Creates a shell script consisting of bash commands for running compute_gns.py
     ------------------------------------------------------------------------------
