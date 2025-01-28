@@ -141,17 +141,8 @@ def experiment_logger(args: Namespace,
     print(f"Experiment saved at {path}.\n")
 
 
-def csv_log_to_dataframe(path, raw=False):
-    assert os.path.exists(path), f"Couldn't find file: {path}\n"
-    df = pd.read_csv(path)
 
-    ## Adjust data types
-    df["date"] = pd.to_datetime(df["date"])
-    df["runtime"] = pd.to_datetime(df["runtime"])
-    df["runtime"] = df["runtime"].dt.time
-    if raw:
-        return df
-
+def split_dataframe(df: pd.DataFrame):
     ## Dataframes
     df_meta = df[
         "date runtime user host ckpt_dir vis_dir save_fig accumulate epoch verbose no_seed no_warnings".split()
@@ -162,6 +153,20 @@ def csv_log_to_dataframe(path, raw=False):
     df_result = df["gns_est g_norm b_true t_min t_max runtime".split()
     ]
     return df_meta, df_param, df_result
+
+
+def csv_log_to_dataframe(path, raw=False):
+    assert os.path.exists(path), f"Couldn't find file: {path}\n"
+    df = pd.read_csv(path)
+
+    ## Adjust data types
+    df["date"] = pd.to_datetime(df["date"])
+    df["runtime"] = pd.to_datetime(df["runtime"])
+    df["runtime"] = df["runtime"].dt.time
+    if raw:
+        return df
+    else:
+        return split_dataframe(df)
 
 
 def create_experiment_bash_with(args: str,
