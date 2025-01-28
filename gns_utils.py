@@ -164,7 +164,7 @@ def csv_log_to_dataframe(path, split=False):
     df["runtime"] = pd.to_datetime(df["runtime"])
     df["runtime"] = df["runtime"].dt.time
 
-    if split:
+    if not split:
         return df
     else:
         return split_dataframe(df)
