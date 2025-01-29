@@ -147,7 +147,7 @@ def split_dataframe(df: pd.DataFrame):
         "date runtime user host ckpt_dir vis_dir save_fig accumulate epoch verbose no_seed no_warnings".split()
     ]
     df_param = df[
-        "model t_min t_max diff_steps true_portion".split()
+        "model t_min t_max diff_steps true_portion b B".split()
     ]
     df_result = df["gns_est g_norm b_true t_min t_max runtime".split()
     ]
