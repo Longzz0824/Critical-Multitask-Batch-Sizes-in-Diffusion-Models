@@ -217,10 +217,13 @@ class GradientNoiseScale:
             b_grad = self.get_batch_gradient(*small_batch)
 
             G2 = (B * torch.norm(B_grad, p=2) ** 2 - b * torch.norm(b_grad, p=2)) / (B - b)
-            assert G2 > 0, "Signal became negative!\n"
+            if G2 < 0:
+                continue
+
             G2s.append(G2)
 
         G2 = torch.mean(torch.stack(G2s), dim=0)
+        assert G2 > 0, "Signal became negative!\n"
 
         ## Calculate unbiased gradient_snr
         self.gns = (S / G2).item()
