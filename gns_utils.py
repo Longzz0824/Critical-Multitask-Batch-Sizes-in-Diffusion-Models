@@ -144,12 +144,17 @@ def experiment_logger(args: Namespace,
 def split_dataframe(df: pd.DataFrame):
     ## Dataframes
     df_meta = df[
-        "date runtime user host ckpt_dir vis_dir save_fig accumulate epoch verbose no_seed no_warnings".split()
+        ['date','runtime (s)','user','host',
+         'ckpt_dir','vis_dir','save_fig','accumulate','epoch','verbose','no_seed','no_warnings']
     ]
     df_param = df[
-        "model t_min t_max diff_steps true_portion b B".split()
+        ['model', 't_min', 't_max', 'diff_steps', 'true_portion', 'b', 'B']
     ]
-    df_result = df["gns_est g_norm b_true t_min t_max runtime".split()
+    df_param["model"] = df_param["model"].apply(lambda x: int(x.strip(".pt")))
+    df_param = df_param.rename(columns={"model": "training_step"})
+
+    df_result = df[
+        ['gns_est', 'g_norm', 'b_true', 't_min', 't_max', 'runtime (s)']
     ]
 
     return df_meta, df_param, df_result
@@ -161,8 +166,9 @@ def csv_log_to_dataframe(path, split=False):
 
     ## Adjust data types
     df["date"] = pd.to_datetime(df["date"])
-    df["runtime"] = pd.to_datetime(df["runtime"])
-    df["runtime"] = df["runtime"].dt.time
+    df["runtime"] = pd.to_timedelta(df["runtime"])
+    df["runtime"] = df["runtime"].dt.total_seconds()
+    df = df.rename(columns={"runtime": "runtime (s)"})
 
     if not split:
         return df
