@@ -70,11 +70,11 @@ def parse_arguments() -> argparse.Namespace:
                         help="Portion of dataset to compute g_true.")
     parser.add_argument("--diff_steps", "-T", type=int, default=1000,
                         help="Number of the diffusion time steps.")
-    parser.add_argument("--B", "-B", type=int, default=2500,
+    parser.add_argument("--B", "-B", type=int, default=5000,
                         help="Big batch size for estimating gns.")
-    parser.add_argument("--b", "-b", type=int, default=25,
+    parser.add_argument("--b", "-b", type=int, default=50,
                         help="Small batch size for estimating gns.")
-    parser.add_argument("--reps", "-r", type=int, default=5,
+    parser.add_argument("--reps", "-r", type=int, default=2,
                         help="Number of repetitions for estimating unbiased g_norm.")
     parser.add_argument("--t_min", type=int, default=None,
                         help="Floor value for diffusion steps.")
