@@ -142,20 +142,19 @@ def experiment_logger(args: Namespace,
 
 
 def split_dataframe(df: pd.DataFrame):
-    ## Dataframes
+    ## Experiment meta-data
     df_meta = df[
         ['date','runtime (s)','user','host',
-         'ckpt_dir','vis_dir','save_fig','accumulate','epoch','verbose','no_seed','no_warnings']
+         'ckpt_dir','vis_dir','save_fig',
+         'accumulate','epoch','verbose','no_seed','no_warnings']
     ]
-    df_param = df[
-        ['model', 't_min', 't_max', 'diff_steps', 'true_portion', 'b', 'B']
-    ]
+    ## Experiment input parameters
+    df_param = df[['model', 't_min', 't_max', 'diff_steps', 'true_portion', 'b', 'B', 'reps']]
     df_param["model"] = df_param["model"].apply(lambda x: int(x.strip(".pt")))
     df_param = df_param.rename(columns={"model": "training_step"})
 
-    df_result = df[
-        ['gns_est', 'g_norm', 'b_true', 't_min', 't_max', 'runtime (s)']
-    ]
+    ## Experiment output results
+    df_result = df[['gns_est', 'g_norm', 'b_true', 't_min', 't_max', 'runtime (s)']]
 
     return df_meta, df_param, df_result
 
