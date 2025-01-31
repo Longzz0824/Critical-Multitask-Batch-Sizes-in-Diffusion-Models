@@ -19,7 +19,7 @@ def run_experiment_folder(args: Namespace):
         print(c)
     print("-------------------------------\n")
 
-    for shell in sorted([file for file in contents if file.endswith(".sh")], reverse=args.best_first):
+    for shell in sorted([file for file in contents if file.endswith(".sh")], reverse=args.last_first):
         print(f"RUNNING: {shell.strip('.sh')}\n")
         s_path = path / shell
         os.system(f"bash {s_path}")
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--expr_dir", "-ex", choices=list(os.walk(EXPR_DIR))[0][1], required=True)
     parser.add_argument("--repeat", "-rep", type=int, default=1)
-    parser.add_argument("--best_first", "-bf" ,action="store_true")
+    parser.add_argument("--last_first", "-lf" ,action="store_true")
     args = parser.parse_args()
 
     for _ in range(args.repeat):

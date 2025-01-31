@@ -109,6 +109,9 @@ def compare_models_with_time_intervals(
         n_intervals: int,
         models: [str],
         n_steps: int = 1000,
+        b: int = 50,
+        B: int = 5_000,
+        reps: int = 2,
     ):
     assert len(models) > 1, "You must specify at least one model!"
     assert n_steps % n_intervals == 0, f"Total diffusion steps ({n_steps}) must be divisible by n_intervals!"
@@ -130,7 +133,12 @@ def compare_models_with_time_intervals(
 
         for (t_min, t_max) in timesteps:
             args = f"--t_min {t_min} --t_max {t_max}"
-            create_experiment_bash_with(args, model, csv_path=csv_name, bash_path=shell_name, vis_dir=vis_dir)
+            create_experiment_bash_with(args,
+                                        model,
+                                        csv_path=csv_name,
+                                        bash_path=shell_name,
+                                        vis_dir=vis_dir,
+                                        b=b, B=B, reps=reps)
             expr_count += 1
 
     print(f"{expr_count} experiments.")
@@ -138,9 +146,14 @@ def compare_models_with_time_intervals(
     print("------------------------------------------\n")
 
 
-def create_experiment_3(models: [str], intervals: [int]):
+def create_experiment_3(models: [str], intervals: [int], reverse_models=False):
+    if reverse_models:
+        models = models[::-1]
+        print("Models list order reversed!\n")
     for i in intervals:
-        expr_name = f"models_{i}_intervals"
+        expr_name = f"all_models_{i}_intervals"
+        if reverse_models:
+            expr_name += "_reversed"
         compare_models_with_time_intervals(name=expr_name,
                                            expr_dir="3_time_intervals",
                                            n_intervals=i,
@@ -158,11 +171,13 @@ if __name__ == "__main__":
     print("\n")
 
     ## Experiment 1: Effect of true_portion
-    # create_experiment_1(models=all_models[-10:-2], portions=(0.1, 0.2, 0.5))
+    #models = all_models[-10:-2]
+    #create_experiment_1(models=models, portions=(0.1, 0.2, 0.5))
 
     ## Experiment 2: Hyperparameter Search
-    models = all_models[:5] + all_models[-2:-10:-2]
-    create_experiment_2(models=models, b_values=(50, 100, 1000), Bb_ratios=(10, 100), reps=(2, 5))
+    #models = all_models[:5] + all_models[-2:-10:-2]
+    #create_experiment_2(models=models, b_values=(50, 100, 1000), Bb_ratios=(10, 100), reps=(2, 5))
 
     ## Experiment 3: Time Intervals
-    #experiment_3(models=all_models, intervals=(2, 5, 10, 20))
+    create_experiment_3(models=all_models, intervals=(10,), reverse_models=True)
+    create_experiment_3(models=all_models, intervals=(10,), reverse_models=False)
