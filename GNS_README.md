@@ -59,7 +59,7 @@ TODO1
 ```
 
 
-## Experiment 1: Changes in Gradient Noise Scale (GNS) During DiT Training
+## Experiment 1: Changes in Critical batch size (B_crit) During DiT Training
 
 The first experiment investigates the dynamics of the **Gradient Noise Scale (GNS)** during the training process of a Diffusion Transformer (DiT). GNS, as introduced in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), is a critical metric for understanding the relationship between batch size and training efficiency. It helps identify the **critical batch size**, the point at which increasing the batch size yields diminishing returns in terms of gradient noise reduction.
 
@@ -81,7 +81,7 @@ This experiment provides a foundation for optimizing batch size allocation acros
 
 
 
-## Experiment 2: Analyzing GNS Across Multiple Timestep Bins in Diffusion Models
+## Experiment 2: Analyzing B_crit Across Multiple Timestep Bins in Diffusion Models
 
 In this experiment, we investigate the **Gradient Noise Scale (GNS)** across multiple timestep bins within diffusion models. Diffusion models inherently involve multitask training, as each timestep (or a range of timesteps) can be treated as a separate task. This experiment aims to explore how GNS varies across these timesteps and uncover potential inefficiencies in training specific ranges.
 
