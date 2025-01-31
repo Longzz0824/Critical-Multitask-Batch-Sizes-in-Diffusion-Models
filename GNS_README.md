@@ -64,9 +64,11 @@ TODO1
 The first experiment investigates the dynamics of the **Gradient Noise Scale (GNS)** during the training process of a Diffusion Transformer (DiT). GNS, as introduced in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), is a critical metric for understanding the relationship between batch size and training efficiency. It helps identify the **critical batch size**, the point at which increasing the batch size yields diminishing returns in terms of gradient noise reduction.
 
 ### Objective
-To analyze how GNS evolves over the course of training a diffusion model and examine its behavior across different timesteps (or timestep bins). This will provide insight into:
-- The variation in GNS as a function of timesteps/tasks.
-- Whether the critical batch size shifts as training progresses.
+This experiment aims to analyze how the **Gradient Noise Scale (GNS)** evolves throughout the training process of a **Diffusion Transformer (DiT)**. GNS, introduced in *"An Empirical Model of Large-Batch Training"*, is a crucial metric for understanding the relationship between batch size and training efficiency. Specifically, this study investigates:  
+
+- The variation of **GNS at different training checkpoints** (e.g., 10%, 20%, ..., 100% of total training steps).  
+- Whether **the critical batch size changes as training progresses**.  
+
 
 ### Implementation
 ```bash
