@@ -1,5 +1,7 @@
 # Critical Multitask Batch Sizes in Diffusion Models<br>
 
+![DiT samples](visuals/sample_grid_0.png)
+
 This repo explores the training dynamics of diffusion models by investigating critical batch sizes in multitask scenarios. The methodology is inspired by the theory proposed in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), which provides insights into optimal batch sizes for deep neural networks. However, this framework does not directly account for multitask cases, such as diffusion models, where each timestep (or range of timesteps) can be treated as a distinct task.
 
 ## Understanding Critical Batch Size and Gradient Noise Scale
@@ -21,6 +23,7 @@ This repo serves as a baseline exploration, providing a foundation for improving
 
 It contains:
 
+* 📜 **fast-DiT**: Using ["fast-DiT"](https://github.com/chuanyangjin/fast-DiT) to train the model.
 * 🪐 **A Gradient Noise Scale Calculator**: Includes the [implementation](GNS.py) and a [collection of helper functions](gns_utils.py) to support GNS calculation and related experiments.
 * ⚡️ **Pre-trained DiT-S/2 Models**: High-quality models trained on ImageNet, available for initialization and reproducibility.
 * 📂 **Checkpoints Directory**: Contains pre-trained [DiT-S/2 model checkpoints](checkpoints), organized by training configuration and purpose.
@@ -44,12 +47,31 @@ conda env create -f environment.yml
 conda activate DiT  
 ```
 
-## Preparation
+## Training
+### Preparation Before Training
 To extract ImageNet features with `1` GPUs on one node:
 
 ```bash
 torchrun --nnodes=1 --nproc_per_node=1 extract_features.py --model DiT-S/2 --data-path /data --features-path /features
 ```
+
+### Training DiT
+Fast-DiT provide a training script for DiT in [`train.py`](train.py). This script can be used to train class-conditional 
+DiT models, but it can be easily modified to support other types of conditioning. 
+
+To launch DiT-S/2 (256x256) training with `1` GPUs on one node:
+
+```bash
+accelerate launch --mixed_precision fp16 train.py --model DiT-S/2 --features-path /path/to/store/features
+```
+
+To launch DiT-XL/2 (256x256) training with `N` GPUs on one node:
+```bash
+accelerate launch --multi_gpu --num_processes N --mixed_precision fp16 train.py --model DiT-S/2 --features-path /path/to/store/features
+```
+
+Alternatively, you have the option to extract and train the scripts located in the folder [training options](train_options).
+
 
 ## GNS calculation
 To calculate the Gradient Noise Scale (GNS) for a specific checkpoint, you can use the following command:
