@@ -2,7 +2,7 @@
 
 ![DiT samples](visuals/sample_grid_0.png)
 
-This repo explores the training dynamics of diffusion models by investigating critical batch sizes in multitask scenarios. The methodology is inspired by the theory proposed in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), which provides insights into optimal batch sizes for deep neural networks. However, this framework does not directly account for multitask cases, such as diffusion models, where each timestep (or range of timesteps) can be treated as a distinct task.
+This repo explores the training dynamics of diffusion models by investigating critical batch sizes in multitask scenarios. It uses ["fast-DiT"](https://github.com/chuanyangjin/fast-DiT) for training, which enhances efficiency and scalability in diffusion model training. The methodology is inspired by the theory proposed in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), which provides insights into optimal batch sizes for deep neural networks. However, this framework does not directly account for multitask cases, such as diffusion models, where each timestep (or range of timesteps) can be treated as a distinct task.
 
 ## Understanding Critical Batch Size and Gradient Noise Scale
 
