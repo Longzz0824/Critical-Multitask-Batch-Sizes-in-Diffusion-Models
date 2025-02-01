@@ -23,9 +23,8 @@ device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def compute_gns_during_single_epoch():
     """
-    Calculates gns values throughout one epoch along (large) mini-batches.
+    Make gns calculation during training (use GNS.gradient_snr() in training iterations)
     """
-    ## TODO: Make gns calculation during training (use GNS.gradient_snr() in training iterations)
     pass
 
 
