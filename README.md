@@ -25,6 +25,7 @@ It contains:
 
 * 📜 **fast-DiT**: Using ["fast-DiT"](https://github.com/chuanyangjin/fast-DiT) to train the model.
 * 🪐 **A Gradient Noise Scale Calculator**: Includes the [implementation](GNS.py) and a [collection of helper functions](gns_utils.py) to support GNS calculation and related experiments.
+* 🔥 **Some Experiments**: All experiment scripts and results are stored in the `gns_experiments/` folder. This folder contains code and logs for analyzing **Gradient Noise Scale (GNS) dynamics** in diffusion models.
 * ⚡️ **Pre-trained DiT-S/2 Models**: High-quality models trained on ImageNet, available for initialization and reproducibility.
 * 📂 **Checkpoints Directory**: Contains pre-trained [DiT-S/2 model checkpoints](checkpoints), organized by training configuration and purpose.
 * 🛸 **Dataset**: The [ILSVRC2012_validation](data) dataset is used to calculate gradients for evaluating the gradient noise scale (GNS).
@@ -47,6 +48,12 @@ conda env create -f environment.yml
 conda activate DiT  
 ```
 
+To install Jupyter and required dependencies:
+
+```bash
+pip install jupyterlab
+```
+
 ## Training
 ### Preparation Before Training
 To extract ImageNet features with `1` GPUs on one node:
@@ -65,7 +72,7 @@ To launch DiT-S/2 (256x256) training with `1` GPUs on one node:
 accelerate launch --mixed_precision fp16 train.py --model DiT-S/2 --features-path /path/to/store/features
 ```
 
-To launch DiT-XL/2 (256x256) training with `N` GPUs on one node:
+To launch DiT-S/2 (256x256) training with `N` GPUs on one node:
 ```bash
 accelerate launch --multi_gpu --num_processes N --mixed_precision fp16 train.py --model DiT-S/2 --features-path /path/to/store/features
 ```
@@ -73,59 +80,90 @@ accelerate launch --multi_gpu --num_processes N --mixed_precision fp16 train.py 
 Alternatively, you have the option to extract and train the scripts located in the folder [training options](train_options).
 
 
-## GNS calculation
-To calculate the Gradient Noise Scale (GNS) for a specific checkpoint, you can use the following command:
-
+## Running Experiments in Jupyter Notebook
+Once inside the project folder, start Jupyter:
 ```bash
-TODO1
+jupyter notebook
 ```
+This will open a browser-based interface. Navigate to the gns_experiments/ folder and open the relevant experiment .ipynb file.
 
 
-## Experiment 1: Changes in Critical batch size (B_crit) During DiT Training
-
-The first experiment investigates the dynamics of the **Gradient Noise Scale (GNS)** during the training process of a Diffusion Transformer (DiT). GNS, as introduced in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), is a critical metric for understanding the relationship between batch size and training efficiency. It helps identify the **critical batch size**, the point at which increasing the batch size yields diminishing returns in terms of gradient noise reduction.
+## Experiment 1: Exploring the Dependence of Average GNS on Real Gradient Accuracy
+In this experiment, different true_portion ratios were chosen to calculate the Real gradient.
 
 ### Objective
-This experiment aims to analyze how the **Gradient Noise Scale (GNS)** evolves throughout the training process of a **Diffusion Transformer (DiT)**. GNS, introduced in *"An Empirical Model of Large-Batch Training"*, is a crucial metric for understanding the relationship between batch size and training efficiency. Specifically, this study investigates:  
-
-- The variation of **GNS at different training checkpoints** (e.g., 10%, 20%, ..., 100% of total training steps).  
-- Whether **the critical batch size changes as training progresses**.  
-
-
-### Implementation
-```bash
-TODO2
-```
+- Exploring the Dependence of Average GNS on Real Gradient Accuracy
 
 ### Outcomes
-TODO3- a graph of experiment 1
+![True_grad_accuracy](gns_experiments/1_true_grad_accuracy/visuals/GNS_Gtrue_plot.png)
+- **GNS increases as G_true accuracy improves**, suggesting that a higher proportion of accurate gradients leads to greater gradient noise scale (GNS).
+- **Linear growth pattern**, indicating a direct correlation between `true_portion` and estimated GNS (`gns_est`).  
 
 
-This experiment provides a foundation for optimizing batch size allocation across tasks, improving the overall efficiency of diffusion model training.
+## Experiment 2: Hyperparameter Search
+In this experiment, we aim to explore the impact of hyperparameters on the estimation of GNS. ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162) proposes a method to calculate Unbiased Estimate of GNS  The goal is to determine how different values of **small batch size (𝑏)**, **big batch size (𝐵)**, and **repetitions (𝑟𝑒𝑝𝑠)** affect both the performance and accuracy of the estimation. By systematically searching through different hyperparameter settings, we seek to identify an optimal configuration that balances computational efficiency with estimation correctness.
+### Objective
+- This experiment aims to analyze how to find optimal parameters **(b, B, reps)** for estimating GNS in terms of performance/correctness.
+
+### Outcomes
+This figure illustrates the estimated GNS (Gradient Noise Scale) distribution during training for different combinations of small batch size (b) and big batch size (B), analyzing the impact of these hyperparameters on GNS estimation and its trend over training steps.
+![Estimated GNS during Training](gns_experiments/2_hyperparameters/visuals/2_bB_gns_during_training.png)
+
+The figure below compares the runtime and estimated GNS (Gradient Noise Scale) for different numbers of repetitions (reps = 2 and reps = 5), showing the trade-off between computation time and GNS estimation stability. The runtime increases as batch size grows, while GNS estimation stabilizes with more repetitions.
+![Runtimes_Reps](gns_experiments/2_hyperparameters/visuals/2_runtimes_reps.png)
 
 
 
-## Experiment 2: Analyzing B_crit Across Multiple Timestep Bins in Diffusion Models
+
+## Experiment 3: Analyzing GNS Across Multiple Timestep Bins in Diffusion Models
 
 In this experiment, we investigate the **Gradient Noise Scale (GNS)** across multiple timestep bins within diffusion models. Diffusion models inherently involve multitask training, as each timestep (or a range of timesteps) can be treated as a separate task. This experiment aims to explore how GNS varies across these timesteps and uncover potential inefficiencies in training specific ranges.
 
 ### Objective
 - To partition the timesteps of a diffusion model into several bins and analyze the variation in GNS for each bin during training.
 - To identify which timestep bins exhibit higher or lower gradient noise, revealing task-specific optimization challenges.
-- To understand whether certain timesteps require different batch size allocations for efficient training.
-
-### Implementation
-```bash
-TODO4
-```
 
 ### Outcomes
-TODO5- a graph of experiment 2
+![GNS Across Multiple Timestep Bins](gns_experiments/3_time_intervals/visuals/bin_gns_lines_over_training_log_scale.png)
+- **GNS increases over training**, with different timestep bins exhibiting varying growth patterns.  
+- Some bins (e.g., **(0,100)** and **(101,200)**) show **sharp increases**, indicating noisier gradients in early timesteps.  
+- **Later bins (e.g., (901,1000)) have lower GNS**, suggesting more stable optimization at later stages.  
+- **Adaptive batch size strategies** could enhance training efficiency by adjusting to timestep-specific GNS trends.  
 
-This experiment builds upon the first by introducing a finer granularity in analyzing training dynamics. The insights gained could pave the way for adaptive training strategies, improving the overall efficiency of diffusion model training.
 
 
+## Experiment 4: Estimating Critical Batch Size over Training Steps
 
+The last experiment investigates the dynamics of the **Critical Batch Size (B_crit)** during the training process of a Diffusion Transformer (DiT).
+
+### Objective
+This experiment aims to analyze how the **Gradient Noise Scale (GNS)** evolves throughout the training process of a **Diffusion Transformer (DiT)**. GNS, introduced in *"An Empirical Model of Large-Batch Training"*, is a crucial metric for understanding the relationship between batch size and training efficiency. Specifically, this study investigates:  
+
+- Estimate the multi-task *critical batch sizes** (dependent on time-bins) from GNS computation
+- Estimate throughout training steps 
+
+
+### Outcomes
+![critical_batch_sizes_p1_norm](gns_experiments/4_critical_batches/critical_batch_sizes_p1_norm.png)
+
+- **Critical batch size (B_crit) varies over training**
+- **Gradient Noise Scale (GNS) decreases for later timesteps**, indicating more stable gradients at higher timestep ranges.
+
+
+## Summary of Findings
+Through a series of experiments, we analyzed **Gradient Noise Scale (GNS)** dynamics and **critical batch size (B_crit)** in diffusion models. The results provide valuable insights into how batch size, timestep variation, and gradient estimation accuracy influence training efficiency.
+
+1. **GNS is dependent on gradient accuracy**  
+   - Experiments show **GNS increases as G_true accuracy improves**, indicating that **more accurate gradients introduce greater noise variations**.  
+   - This suggests **larger batch sizes may be necessary for higher accuracy models** to maintain stable training.  
+
+2. **GNS varies significantly across timesteps**  
+   - Early timesteps (**0-100, 101-200**) consistently exhibit **higher GNS**, requiring **larger batch sizes** for stable training.  
+   - Later timesteps show lower GNS, suggesting they benefit from **smaller batch sizes** for efficient computation.  
+
+3. **Critical batch size (B_crit) evolves during training**  
+   - **B_crit increases as training progresses**, particularly in earlier timesteps.  
+   - **Implication:** Static batch size allocation is **inefficient**, and an **adaptive batch size strategy** could significantly improve training efficiency.
 
 
 
