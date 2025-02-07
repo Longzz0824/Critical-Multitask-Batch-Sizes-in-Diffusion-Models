@@ -1,24 +1,41 @@
-## Scalable Diffusion Models with Transformers (DiT)<br><sub>Improved PyTorch Implementation</sub>
-
-### [Paper](http://arxiv.org/abs/2212.09748) | [Project Page](https://www.wpeebles.com/DiT) | Run DiT-S/2 [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/wpeebles/DiT) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/facebookresearch/DiT/blob/main/run_DiT.ipynb) <a href="https://replicate.com/arielreplicate/scalable_diffusion_with_transformers"><img src="https://replicate.com/arielreplicate/scalable_diffusion_with_transformers/badge"></a>
+# Critical Multitask Batch Sizes in Diffusion Models<br>
 
 ![DiT samples](visuals/sample_grid_0.png)
 
-This repo features an improved PyTorch implementation for the paper [**Scalable Diffusion Models with Transformers**](https://www.wpeebles.com/DiT).
+This repo explores the training dynamics of diffusion models by investigating critical batch sizes in multitask scenarios. It uses ["fast-DiT"](https://github.com/chuanyangjin/fast-DiT) for training, which enhances efficiency and scalability in diffusion model training. The methodology is inspired by the theory proposed in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), which provides insights into optimal batch sizes for deep neural networks. However, this framework does not directly account for multitask cases, such as diffusion models, where each timestep (or range of timesteps) can be treated as a distinct task.
+
+## Understanding Critical Batch Size and Gradient Noise Scale
+
+In large-batch training, **critical batch size (B_crit)** and **gradient noise scale (GNS)** are closely related concepts that dictate the efficiency of training. The gradient noise scale provides an estimate of how large a batch size can be before diminishing returns occur. Specifically:
+
+- **GNS (Gradient Noise Scale):** Measures the variance in gradients across training examples. A higher GNS indicates that a larger batch size can be used efficiently.
+- **B_crit (Critical Batch Size):** Defined as the batch size where training efficiency starts to decline significantly. It marks the transition from an efficient to an inefficient parallelization regime.
+
+In diffusion models, which involve multitask learning across timesteps, GNS varies across different timestep bins. This means that the optimal batch size for each timestep can change dynamically during training, requiring adaptive strategies for efficient batch allocation.
+
+## Application to Diffusion Models
+
+To bridge this gap, we examine how the concepts of critical batch size can be applied to diffusion model training. Specifically, this study focuses on analyzing critical batch sizes across multiple timestep bins and how these change over the course of training. The goal is to determine whether this understanding can lead to more efficient training strategies for diffusion models, building upon insights such as those presented in ["Efficient Diffusion Training via Min-SNR Weighting Strategy"](https://arxiv.org/abs/2303.09556).
+
+This repo serves as a baseline exploration, providing a foundation for improving the efficiency of diffusion model training through an understanding of multitask batch size dynamics.
+
+## Repository Contents
 
 It contains:
 
-* 🪐 An improved PyTorch [implementation](models.py) and the original [implementation](train_options/models_original.py) of DiT
-* ⚡️ Pre-trained class-conditional DiT models trained on ImageNet (512x512 and 256x256)
-* 💥 A self-contained [Hugging Face Space](https://huggingface.co/spaces/wpeebles/DiT) and [Colab notebook](http://colab.research.google.com/github/facebookresearch/DiT/blob/main/run_DiT.ipynb) for running pre-trained DiT-XL/2 models
-* 🛸 An improved DiT [training script](train.py) and several [training options](train_options)
+* 📜 **fast-DiT**: Using ["fast-DiT"](https://github.com/chuanyangjin/fast-DiT) to train the model.
+* 🪐 **A Gradient Noise Scale Calculator**: Includes the [implementation](GNS.py) and a [collection of helper functions](gns_utils.py) to support GNS calculation and related experiments.
+* ⚡️ **Pre-trained DiT-S/2 Models**: High-quality models trained on ImageNet, available for initialization and reproducibility.
+* 📂 **Checkpoints Directory**: Contains pre-trained [DiT-S/2 model checkpoints](checkpoints), organized by training configuration and purpose.
+* 🛸 **Dataset**: The [ILSVRC2012_validation](data) dataset is used to calculate gradients for evaluating the gradient noise scale (GNS).
+  
 
 ## Setup
 
 First, download and set up the repo:
 
 ```bash
-git clone https://github.com/chuanyangjin/fast-DiT.git
+git clone https://github.com/Longzz0824/Critical-Multitask-Batch-Sizes-in-Diffusion-Models.git
 cd DiT
 ```
 
@@ -27,113 +44,88 @@ to run pre-trained models locally on CPU, you can remove the `cudatoolkit` and `
 
 ```bash
 conda env create -f environment.yml
-conda activate DiT
+conda activate DiT  
 ```
-
-
-## Sampling [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/wpeebles/DiT) [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](http://colab.research.google.com/github/facebookresearch/DiT/blob/main/run_DiT.ipynb)
-![More DiT samples](visuals/sample_grid_1.png)
-
-**Pre-trained DiT checkpoints.** You can sample from our pre-trained DiT models with [`sample.py`](sample.py). Weights for our pre-trained DiT model will be 
-automatically downloaded depending on the model you use. The script has various arguments to switch between the 256x256
-and 512x512 models, adjust sampling steps, change the classifier-free guidance scale, etc. For example, to sample from
-our 512x512 DiT-XL/2 model, you can use:
-
-```bash
-python sample.py --image-size 512 --seed 1
-```
-
-For convenience, our pre-trained DiT models can be downloaded directly here as well:
-
-| DiT Model     | Image Resolution | FID-50K | Inception Score | Gflops | 
-|---------------|------------------|---------|-----------------|--------|
-| [XL/2](https://dl.fbaipublicfiles.com/DiT/models/DiT-XL-2-256x256.pt) | 256x256          | 2.27    | 278.24          | 119    |
-| [XL/2](https://dl.fbaipublicfiles.com/DiT/models/DiT-XL-2-512x512.pt) | 512x512          | 3.04    | 240.82          | 525    |
-
-
-**Custom DiT checkpoints.** If you've trained a new DiT model with [`train.py`](train.py) (see [below](#training-dit)), you can add the `--ckpt`
-argument to use your own checkpoint instead. For example, to sample from the EMA weights of a custom 
-256x256 DiT-L/4 model, run:
-
-```bash
-python sample.py --model DiT-L/4 --image-size 256 --ckpt /path/to/model.pt
-```
-
 
 ## Training
 ### Preparation Before Training
 To extract ImageNet features with `1` GPUs on one node:
 
 ```bash
-torchrun --nnodes=1 --nproc_per_node=1 extract_features.py --model DiT-XL/2 --data-path /path/to/imagenet/train --features-path /path/to/store/features
+torchrun --nnodes=1 --nproc_per_node=1 extract_features.py --model DiT-S/2 --data-path /data --features-path /features
 ```
 
 ### Training DiT
-We provide a training script for DiT in [`train.py`](train.py). This script can be used to train class-conditional 
+Fast-DiT provide a training script for DiT in [`train.py`](train.py). This script can be used to train class-conditional 
 DiT models, but it can be easily modified to support other types of conditioning. 
 
-To launch DiT-XL/2 (256x256) training with `1` GPUs on one node:
+To launch DiT-S/2 (256x256) training with `1` GPUs on one node:
 
 ```bash
-accelerate launch --mixed_precision fp16 train.py --model DiT-XL/2 --features-path /path/to/store/features
+accelerate launch --mixed_precision fp16 train.py --model DiT-S/2 --features-path /path/to/store/features
 ```
 
 To launch DiT-XL/2 (256x256) training with `N` GPUs on one node:
 ```bash
-accelerate launch --multi_gpu --num_processes N --mixed_precision fp16 train.py --model DiT-XL/2 --features-path /path/to/store/features
+accelerate launch --multi_gpu --num_processes N --mixed_precision fp16 train.py --model DiT-S/2 --features-path /path/to/store/features
 ```
 
 Alternatively, you have the option to extract and train the scripts located in the folder [training options](train_options).
 
 
-### PyTorch Training Results
-
-We've trained DiT-XL/2 and DiT-B/4 models from scratch with the PyTorch training script
-to verify that it reproduces the original JAX results up to several hundred thousand training iterations. Across our experiments, the PyTorch-trained models give 
-similar (and sometimes slightly better) results compared to the JAX-trained models up to reasonable random variation. Some data points:
-
-| DiT Model  | Train Steps | FID-50K<br> (JAX Training) | FID-50K<br> (PyTorch Training) | PyTorch Global Training Seed |
-|------------|-------------|----------------------------|--------------------------------|------------------------------|
-| XL/2       | 400K        | 19.5                       | **18.1**                       | 42                           |
-| B/4        | 400K        | **68.4**                   | 68.9                           | 42                           |
-| B/4        | 400K        | 68.4                       | **68.3**                       | 100                          |
-
-These models were trained at 256x256 resolution; we used 8x A100s to train XL/2 and 4x A100s to train B/4. Note that FID 
-here is computed with 250 DDPM sampling steps, with the `mse` VAE decoder and without guidance (`cfg-scale=1`). 
-
-
-### Improved Training Performance
-In comparison to the original implementation, we implement a selection of training speed acceleration and memory saving features including gradient checkpointing, mixed precision training, and pre-extracted VAE features, resulting in a 95% speed increase and 60% memory reduction on DiT-XL/2. Some data points using a global batch size of 128 with an A100:
- 
-| gradient checkpointing | mixed precision training | feature pre-extraction | training speed | memory       |
-|:----------------------:|:------------------------:|:----------------------:|:--------------:|:------------:|
-| ❌                    | ❌                       | ❌                    | -              | out of memory|
-| ✔                     | ❌                       | ❌                    | 0.43 steps/sec | 44045 MB     |
-| ✔                     | ✔                        | ❌                    | 0.56 steps/sec | 40461 MB     |
-| ✔                     | ✔                        | ✔                     | 0.84 steps/sec | 27485 MB     |
-
-
-## Evaluation (FID, Inception Score, etc.)
-
-We include a [`sample_ddp.py`](sample_ddp.py) script which samples a large number of images from a DiT model in parallel. This script 
-generates a folder of samples as well as a `.npz` file which can be directly used with [ADM's TensorFlow
-evaluation suite](https://github.com/openai/guided-diffusion/tree/main/evaluations) to compute FID, Inception Score and
-other metrics. For example, to sample 50K images from our pre-trained DiT-XL/2 model over `N` GPUs, run:
+## GNS calculation
+To calculate the Gradient Noise Scale (GNS) for a specific checkpoint, you can use the following command:
 
 ```bash
-torchrun --nnodes=1 --nproc_per_node=N sample_ddp.py --model DiT-XL/2 --num-fid-samples 50000
+TODO1
 ```
 
-There are several additional options; see [`sample_ddp.py`](sample_ddp.py) for details.
+
+## Experiment 1: Changes in Critical batch size (B_crit) During DiT Training
+
+The first experiment investigates the dynamics of the **Gradient Noise Scale (GNS)** during the training process of a Diffusion Transformer (DiT). GNS, as introduced in ["An Empirical Model of Large-Batch Training"](https://arxiv.org/abs/1812.06162), is a critical metric for understanding the relationship between batch size and training efficiency. It helps identify the **critical batch size**, the point at which increasing the batch size yields diminishing returns in terms of gradient noise reduction.
+
+### Objective
+This experiment aims to analyze how the **Gradient Noise Scale (GNS)** evolves throughout the training process of a **Diffusion Transformer (DiT)**. GNS, introduced in *"An Empirical Model of Large-Batch Training"*, is a crucial metric for understanding the relationship between batch size and training efficiency. Specifically, this study investigates:  
+
+- The variation of **GNS at different training checkpoints** (e.g., 10%, 20%, ..., 100% of total training steps).  
+- Whether **the critical batch size changes as training progresses**.  
 
 
-## Citation
-
-```bibtex
-@misc{jin2024fast,
-    title={Fast-DiT: Fast Diffusion Models with Transformers},
-    author={Jin, Chuanyang and Xie, Saining},
-    howpublished = {\url{https://github.com/chuanyangjin/fast-DiT}},
-    year={2024}
-}
+### Implementation
+```bash
+TODO2
 ```
+
+### Outcomes
+TODO3- a graph of experiment 1
+
+
+This experiment provides a foundation for optimizing batch size allocation across tasks, improving the overall efficiency of diffusion model training.
+
+
+
+## Experiment 2: Analyzing B_crit Across Multiple Timestep Bins in Diffusion Models
+
+In this experiment, we investigate the **Gradient Noise Scale (GNS)** across multiple timestep bins within diffusion models. Diffusion models inherently involve multitask training, as each timestep (or a range of timesteps) can be treated as a separate task. This experiment aims to explore how GNS varies across these timesteps and uncover potential inefficiencies in training specific ranges.
+
+### Objective
+- To partition the timesteps of a diffusion model into several bins and analyze the variation in GNS for each bin during training.
+- To identify which timestep bins exhibit higher or lower gradient noise, revealing task-specific optimization challenges.
+- To understand whether certain timesteps require different batch size allocations for efficient training.
+
+### Implementation
+```bash
+TODO4
+```
+
+### Outcomes
+TODO5- a graph of experiment 2
+
+This experiment builds upon the first by introducing a finer granularity in analyzing training dynamics. The insights gained could pave the way for adaptive training strategies, improving the overall efficiency of diffusion model training.
+
+
+
+
+
+
